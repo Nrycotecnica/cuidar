@@ -13,3 +13,9 @@ frontend/dist/
 .DS_Store
 *.log
 backups/
+# Implantação (segredos e backups ficam só no servidor)
+deploy/.env
+deploy/homolog.env
+deploy/producao.env
+deploy/backups/
+deploy/historico-implantacoes.log

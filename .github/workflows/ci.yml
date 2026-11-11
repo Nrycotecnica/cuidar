@@ -1,0 +1,66 @@
+# Testes automáticos em todo push e pull request (e chamados antes de cada implantação).
+name: CI
+
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (motor de cálculo, API, migrações)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: vent_ci
+          POSTGRES_USER: vent
+          POSTGRES_PASSWORD: vent
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U vent" --health-interval 5s --health-retries 20
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: postgresql+psycopg://vent:vent@localhost:5432/vent_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      - name: Migrações aplicam em PostgreSQL limpo
+        run: python -m app.manage migrar
+      - name: Modelos e migrações sincronizados
+        run: alembic check
+      - name: Testes (PostgreSQL)
+        run: python -m pytest -q
+      - name: Testes (SQLite)
+        env:
+          DATABASE_URL: ""
+        run: python -m pytest -q
+
+  frontend:
+    name: Frontend (tipos, testes e build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build

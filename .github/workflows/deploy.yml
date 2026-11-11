@@ -1,0 +1,141 @@
+# Publicação online:
+#   push na branch main        → testes → imagem → HOMOLOGAÇÃO (automático)
+#   tag vX.Y.Z (ex.: v0.2.0)   → testes → imagem → PRODUÇÃO (requer aprovação no ambiente "producao" do GitHub)
+#   execução manual            → (re)implanta qualquer tag existente em um ambiente (restaurar versão anterior)
+name: Publicar
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      ambiente:
+        description: "Ambiente"
+        required: true
+        type: choice
+        options: [homologacao, producao]
+      tag:
+        description: "Tag da imagem já publicada (ex.: v0.1.0 ou sha-abc1234)"
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publicar-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  testes:
+    if: github.event_name != 'workflow_dispatch'
+    uses: ./.github/workflows/ci.yml
+
+  imagem:
+    if: github.event_name != 'workflow_dispatch'
+    needs: testes
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      imagem: ${{ steps.meta.outputs.imagem }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: meta
+        name: Definir nome, versão e tags
+        run: |
+          IMAGEM="ghcr.io/${GITHUB_REPOSITORY,,}"
+          SHA="sha-${GITHUB_SHA::7}"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSAO="${GITHUB_REF_NAME#v}"; TAG="$GITHUB_REF_NAME"
+            TAGS="$IMAGEM:$TAG,$IMAGEM:$SHA"
+          else
+            VERSAO="$(cat VERSION)-homolog.${GITHUB_RUN_NUMBER}"; TAG="$SHA"
+            TAGS="$IMAGEM:$SHA,$IMAGEM:main"
+          fi
+          echo "imagem=$IMAGEM" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "tags=$TAGS" >> "$GITHUB_OUTPUT"
+          echo "versao=$VERSAO" >> "$GITHUB_OUTPUT"
+          echo "data=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          build-args: |
+            APP_VERSION=${{ steps.meta.outputs.versao }}
+            GIT_SHA=${{ github.sha }}
+            BUILD_DATE=${{ steps.meta.outputs.data }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  homologacao:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: imagem
+    runs-on: ubuntu-latest
+    environment: homologacao
+    steps:
+      - name: Implantar na homologação
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          PASTA: ${{ vars.PASTA_DEPLOY || '/opt/ventilacao/deploy' }}
+          TAG: ${{ needs.imagem.outputs.tag }}
+        run: |
+          if [ -z "$SSH_HOST" ]; then
+            echo "::warning::Servidor não configurado (secrets SSH_HOST/SSH_USER/SSH_KEY/SSH_KNOWN_HOSTS). Imagem publicada: ${TAG}; implantação ignorada."
+            exit 0
+          fi
+          mkdir -p ~/.ssh && echo "$SSH_KEY" > ~/.ssh/id && chmod 600 ~/.ssh/id && echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/id "$SSH_USER@$SSH_HOST" "cd '$PASTA' && ./scripts/atualizar.sh homologacao '$TAG'"
+
+  producao:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: imagem
+    runs-on: ubuntu-latest
+    environment: producao
+    steps:
+      - name: Implantar na produção
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          PASTA: ${{ vars.PASTA_DEPLOY || '/opt/ventilacao/deploy' }}
+          TAG: ${{ needs.imagem.outputs.tag }}
+        run: |
+          if [ -z "$SSH_HOST" ]; then
+            echo "::warning::Servidor não configurado. Imagem publicada: ${TAG}; implantação ignorada."
+            exit 0
+          fi
+          mkdir -p ~/.ssh && echo "$SSH_KEY" > ~/.ssh/id && chmod 600 ~/.ssh/id && echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/id "$SSH_USER@$SSH_HOST" "cd '$PASTA' && ./scripts/atualizar.sh producao '$TAG'"
+
+  manual:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.ambiente }}
+    steps:
+      - name: Implantar tag escolhida
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          PASTA: ${{ vars.PASTA_DEPLOY || '/opt/ventilacao/deploy' }}
+          AMB: ${{ inputs.ambiente }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          [[ "$TAG" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "tag inválida"; exit 1; }
+          [ -n "$SSH_HOST" ] || { echo "::error::Servidor não configurado"; exit 1; }
+          mkdir -p ~/.ssh && echo "$SSH_KEY" > ~/.ssh/id && chmod 600 ~/.ssh/id && echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/id "$SSH_USER@$SSH_HOST" "cd '$PASTA' && ./scripts/atualizar.sh '$AMB' '$TAG'"

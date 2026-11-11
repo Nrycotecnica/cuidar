@@ -14,8 +14,21 @@ from .routers import admin, antigos, arquivos, assistente, auth, calculos, catal
 from .seed import inicializar
 
 
+CHAVE_PADRAO = "troque-esta-chave-em-producao"
+
+
+def verificar_configuracao():
+    s = get_settings()
+    if s.app_env != "desenvolvimento":
+        if s.secret_key == CHAVE_PADRAO or len(s.secret_key) < 32:
+            raise RuntimeError("SECRET_KEY ausente ou fraca: defina uma chave aleatória com pelo menos 32 caracteres.")
+        if s.admin_password == "admin123":
+            raise RuntimeError("ADMIN_PASSWORD padrão não é permitida fora do ambiente de desenvolvimento.")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    verificar_configuracao()
     with SessionLocal() as db:
         inicializar(db)
     yield
