@@ -3,6 +3,9 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
+import os
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -36,6 +39,22 @@ class Settings(BaseSettings):
     anthropic_model: str = "claude-opus-5-5"
     assistente_habilitado: bool = True
     oda_converter_path: str = ""  # caminho do ODA File Converter para DWG (opcional)
+
+    @field_validator("database_url")
+    @classmethod
+    def _driver_postgres(cls, v: str) -> str:
+        """Provedores (ex.: Render) entregam postgres:// ou postgresql://; o driver usado é o psycopg 3."""
+        for prefixo in ("postgres://", "postgresql://"):
+            if v.startswith(prefixo):
+                return "postgresql+psycopg://" + v[len(prefixo):]
+        return v
+
+    @field_validator("git_sha")
+    @classmethod
+    def _sha_render(cls, v: str) -> str:
+        if v == "local":
+            return os.environ.get("RENDER_GIT_COMMIT") or v
+        return v
 
 
 @lru_cache

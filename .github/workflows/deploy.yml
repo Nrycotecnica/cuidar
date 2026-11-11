@@ -103,7 +103,12 @@ jobs:
     needs: imagem
     runs-on: ubuntu-latest
     environment: producao
+    permissions:
+      contents: write
     steps:
+      - uses: actions/checkout@v4
+      - name: Avançar a branch "producao" para esta versão (usada pelo Render)
+        run: git push --force origin "${GITHUB_SHA}:refs/heads/producao"
       - name: Implantar na produção
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -124,7 +129,20 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: ${{ inputs.ambiente }}
+    permissions:
+      contents: write
     steps:
+      - uses: actions/checkout@v4
+        if: inputs.ambiente == 'producao' && startsWith(inputs.tag, 'v')
+        with:
+          fetch-depth: 0
+      - name: Apontar a branch "producao" para a versão escolhida (Render)
+        if: inputs.ambiente == 'producao' && startsWith(inputs.tag, 'v')
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          [[ "$TAG" =~ ^v[0-9A-Za-z._-]+$ ]] || { echo "tag inválida"; exit 1; }
+          git push --force origin "refs/tags/${TAG}^{commit}:refs/heads/producao"
       - name: Implantar tag escolhida
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -136,6 +154,6 @@ jobs:
           TAG: ${{ inputs.tag }}
         run: |
           [[ "$TAG" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "tag inválida"; exit 1; }
-          [ -n "$SSH_HOST" ] || { echo "::error::Servidor não configurado"; exit 1; }
+          if [ -z "$SSH_HOST" ]; then echo "::notice::Sem servidor SSH configurado; nada a fazer além da branch (Render)."; exit 0; fi
           mkdir -p ~/.ssh && echo "$SSH_KEY" > ~/.ssh/id && chmod 600 ~/.ssh/id && echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           ssh -i ~/.ssh/id "$SSH_USER@$SSH_HOST" "cd '$PASTA' && ./scripts/atualizar.sh '$AMB' '$TAG'"
