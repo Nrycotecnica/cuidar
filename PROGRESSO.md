@@ -18,7 +18,7 @@ Legenda: ✅ funciona e foi verificado · 🟡 parcial · ⏳ não iniciado · �
 | Exportar lista de componentes | ✅ | CSV, XLSX e PDF (`test_fluxo_rede_calculo_exportacao`) |
 | Anexar projeto antigo | ✅ | `test_upload_arquivo_e_projeto_antigo` (anexo + download + comparação) |
 | Testes automatizados das funcionalidades essenciais | ✅ | 48 testes backend (motor + API + assistente simulado) + 7 testes unitários do frontend; fluxo completo verificado no navegador (Playwright) |
-| Publicar atualização em homologação sem interferir na produção | 🟡 | Mecanismo implementado e **simulado localmente com Docker** (ver Infraestrutura): homologação 0.1.0→0.1.1 com produção intacta, retorno automático de versão defeituosa, backup/restauração. 🔒 Falta servidor, domínios e acesso do GitHub para colocar no ar |
+| Publicar atualização em homologação sem interferir na produção | 🟡 | Mecanismo implementado e **simulado localmente com Docker** (ver Infraestrutura): homologação 0.1.0→0.1.1 com produção intacta, retorno automático de versão defeituosa, backup/restauração. CI no GitHub verde e imagem publicada no GHCR. Blueprint do Render (`render.yaml`) pronto e validado contra o esquema oficial; imagem testada com a URL de banco e a porta do Render. 🔒 Falta aplicar o Blueprint no painel do Render e configurar o domínio |
 
 ## O que já funciona
 
@@ -55,7 +55,7 @@ Legenda: ✅ funciona e foi verificado · 🟡 parcial · ⏳ não iniciado · �
 - ✅ GitHub Actions: CI (PostgreSQL + SQLite, `alembic check`, frontend) e publicação (main → homologação; tag → produção com aprovação; reimplantação manual de versões anteriores).
 
 ## Em andamento / próximos passos sugeridos
-1. 🔒 Liberar o acesso do Claude ao repositório no GitHub (para enviar o código e rodar o CI), definir servidor e domínios e configurar os segredos (ver `deploy/LEIAME-SERVIDOR.md`).
+1. 🔒 Aplicar o Blueprint no Render (criar tag `v0.1.0`, *New → Blueprint*, preencher senhas) e apontar o domínio (ver `deploy/LEIAME-SERVIDOR.md`, Opção 1).
 2. 🔒 Substituir os dados demonstrativos por dados reais: curvas dos exaustores fabricados, catálogo de dutos e custos, e parâmetros técnicos com referência — e aprová-los.
 3. Validar o motor contra projetos antigos reais da empresa (Biblioteca) e registrar os casos como testes de referência.
 4. Abrir os DXF exportados no AutoCAD da empresa e ajustar padrões de camadas/cores/textos ao padrão interno.

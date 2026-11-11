@@ -1,0 +1,108 @@
+# Blueprint do Render (https://render.com/docs/blueprint-spec) para o Lki Industrial.
+#
+# Cria um projeto com DOIS ambientes isolados, cada um com seu banco PostgreSQL,
+# seu serviço web (imagem Docker deste repositório) e seu disco para arquivos enviados:
+#   homologacao → segue a branch "main"     (publica sozinho quando os testes do GitHub passam)
+#   producao    → segue a branch "producao", que o workflow "Publicar" só avança ao criar
+#                 uma tag vX.Y.Z, depois dos testes e da aprovação do ambiente "producao"
+#
+# Aplicar: Render Dashboard → New → Blueprint → escolher este repositório.
+# Os campos "sync: false" são pedidos no painel durante a criação.
+# Planos e região podem ser alterados aqui ou no painel (valores conferidos na documentação em 11/2026).
+
+projects:
+  - name: lki-industrial
+    environments:
+      - name: homologacao
+        services:
+          - type: web
+            name: lki-homologacao
+            runtime: docker
+            dockerfilePath: ./Dockerfile
+            dockerContext: .
+            branch: main
+            autoDeployTrigger: checksPass
+            region: virginia
+            plan: 0.5c-512mb
+            healthCheckPath: /api/saude
+            disk:
+              name: arquivos
+              mountPath: /dados
+              sizeGB: 5
+            envVars:
+              - key: APP_ENV
+                value: homologacao
+              - key: DATABASE_URL
+                fromDatabase:
+                  name: lki-db-homologacao
+                  property: connectionString
+              - key: SECRET_KEY
+                generateValue: true
+              - key: STORAGE_DIR
+                value: /dados/arquivos
+              - key: SEED_DEMO
+                value: "true"
+              - key: ADMIN_EMAIL
+                sync: false
+              - key: ADMIN_PASSWORD
+                sync: false
+              - key: ADMIN_NOME
+                value: Administrador
+              - key: ANTHROPIC_API_KEY
+                sync: false
+        databases:
+          - name: lki-db-homologacao
+            region: virginia
+            plan: 0.1c-256mb
+            postgresMajorVersion: "16"
+            databaseName: lki_homologacao
+            user: lki
+            ipAllowList: []
+
+      - name: producao
+        services:
+          - type: web
+            name: lki-producao
+            runtime: docker
+            dockerfilePath: ./Dockerfile
+            dockerContext: .
+            branch: producao
+            autoDeployTrigger: commit  # a branch só avança depois dos testes (deploy.yml)
+            region: virginia
+            plan: 0.5c-512mb
+            healthCheckPath: /api/saude
+            disk:
+              name: arquivos
+              mountPath: /dados
+              sizeGB: 10
+            envVars:
+              - key: APP_ENV
+                value: producao
+              - key: DATABASE_URL
+                fromDatabase:
+                  name: lki-db-producao
+                  property: connectionString
+              - key: SECRET_KEY
+                generateValue: true
+              - key: STORAGE_DIR
+                value: /dados/arquivos
+              - key: SEED_DEMO
+                value: "false"
+              - key: ADMIN_EMAIL
+                sync: false
+              - key: ADMIN_PASSWORD
+                sync: false
+              - key: ADMIN_NOME
+                value: Administrador
+              - key: ANTHROPIC_API_KEY
+                sync: false
+        databases:
+          - name: lki-db-producao
+            region: virginia
+            plan: 0.5c-1g
+            postgresMajorVersion: "16"
+            databaseName: lki_producao
+            user: lki
+            ipAllowList: []
+        permissions:
+          protection: enabled

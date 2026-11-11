@@ -1,6 +1,12 @@
 #!/bin/sh
-# Aguarda o banco, aplica migrações (Alembic) e inicia a aplicação.
+# Ajusta a permissão do volume de arquivos, aguarda o banco, aplica migrações (Alembic)
+# e inicia a aplicação sem privilégios de root.
 set -e
+if [ "$(id -u)" = "0" ]; then
+  mkdir -p "${STORAGE_DIR:-/dados/arquivos}"
+  chown -R app:app "$(dirname "${STORAGE_DIR:-/dados/arquivos}")"
+  exec env HOME=/home/app setpriv --reuid=app --regid=app --init-groups "$0" "$@"
+fi
 python - <<'PY'
 import time, sys
 from sqlalchemy import create_engine, text

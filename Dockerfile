@@ -26,9 +26,10 @@ ARG BUILD_DATE=
 ENV APP_VERSION=${APP_VERSION} GIT_SHA=${GIT_SHA} BUILD_DATE=${BUILD_DATE} \
     FRONTEND_DIST=/app/frontend/dist STORAGE_DIR=/dados/arquivos
 
-USER app
+# O contêiner inicia como root apenas para ajustar a permissão do volume de arquivos
+# (discos de provedores podem ser montados como root) e em seguida roda como "app".
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
-  CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/saude', timeout=4)"]
+  CMD ["python", "-c", "import os, urllib.request; urllib.request.urlopen('http://localhost:%s/api/saude' % os.environ.get('PORT', '8000'), timeout=4)"]
 ENTRYPOINT ["docker-entrypoint.sh"]
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips '*'"]
