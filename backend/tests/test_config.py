@@ -16,3 +16,11 @@ def test_commit_do_render(monkeypatch):
     assert Settings().git_sha == "abc1234"
     monkeypatch.setenv("GIT_SHA", "def5678")
     assert Settings().git_sha == "def5678"
+
+
+def test_versao_vazia_usa_arquivo(monkeypatch):
+    from app.config import _versao_arquivo
+    monkeypatch.setenv("APP_VERSION", "")
+    assert Settings().app_version == _versao_arquivo() != ""
+    monkeypatch.setenv("APP_VERSION", "9.9.9")
+    assert Settings().app_version == "9.9.9"

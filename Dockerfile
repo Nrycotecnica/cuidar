@@ -20,7 +20,7 @@ COPY --from=frontend /src/frontend/dist /app/frontend/dist
 COPY deploy/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh && mkdir -p /dados/arquivos && chown -R app:app /dados
 
-ARG APP_VERSION=0.0.0-dev
+ARG APP_VERSION=
 ARG GIT_SHA=local
 ARG BUILD_DATE=
 ENV APP_VERSION=${APP_VERSION} GIT_SHA=${GIT_SHA} BUILD_DATE=${BUILD_DATE} \
