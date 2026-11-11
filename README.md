@@ -1,4 +1,6 @@
-# Engenharia de Exaustão e Ventilação Industrial
+# Lki Industrial — Engenharia de Exaustão e Ventilação Industrial
+
+Desenvolvido por **Diego Pereira**.
 
 Aplicação web para automatizar projetos de **exaustão de poeiras**, **exaustão de fumaças/gases/vapores** e **renovação de ar**, da visita técnica à lista de materiais, com motor de cálculo auditável, catálogo próprio de exaustores e componentes, importação de plantas (DXF/PDF), exportação de desenho editável (DXF) e publicação online com ambientes de homologação e produção.
 

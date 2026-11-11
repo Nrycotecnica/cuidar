@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { NOME_SOFTWARE, PROGRAMADOR, SUBTITULO } from "../lib/marca";
 
 interface Versao { versao: string; ambiente: string; git_sha: string; versao_motor: string }
 
@@ -35,6 +36,14 @@ export function FaixaAmbiente() {
   );
 }
 
+export function Rodape() {
+  return (
+    <footer className="rodape" data-testid="rodape">
+      <strong>{NOME_SOFTWARE}</strong> · Desenvolvido por {PROGRAMADOR}
+    </footer>
+  );
+}
+
 export default function Layout({ children }: { children: ReactNode }) {
   const { usuario, sair, pode } = useAuth();
   const [menu, setMenu] = useState(false);
@@ -55,8 +64,8 @@ export default function Layout({ children }: { children: ReactNode }) {
           <div className="marca">
             <Logo />
             <div>
-              <div className="marca-nome">VentPro</div>
-              <div className="marca-sub">Exaustão e ventilação industrial</div>
+              <div className="marca-nome">{NOME_SOFTWARE}</div>
+              <div className="marca-sub">{SUBTITULO}</div>
             </div>
           </div>
           <nav onClick={() => setMenu(false)}>
@@ -77,6 +86,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           {children}
         </main>
       </div>
+      <Rodape />
     </div>
   );
 }

@@ -36,7 +36,7 @@ async def lifespan(app: FastAPI):
 
 def criar_app() -> FastAPI:
     s = get_settings()
-    app = FastAPI(title="Ventilação Industrial — Engenharia", version=s.app_version, lifespan=lifespan,
+    app = FastAPI(title="Lki Industrial — Engenharia de exaustão e ventilação (desenvolvido por Diego Pereira)", version=s.app_version, lifespan=lifespan,
                   docs_url="/api/docs", openapi_url="/api/openapi.json")
     app.add_middleware(CORSMiddleware, allow_origins=[o.strip() for o in s.cors_origins.split(",") if o.strip()],
                        allow_methods=["*"], allow_headers=["*"])

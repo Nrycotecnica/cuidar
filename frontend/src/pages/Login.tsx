@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { FaixaAmbiente, Logo } from "../components/Layout";
+import { FaixaAmbiente, Logo, Rodape } from "../components/Layout";
+import { NOME_SOFTWARE, SUBTITULO } from "../lib/marca";
 import { ErroBox } from "../components/ui";
 import { useAuth } from "../lib/auth";
 
@@ -30,8 +31,8 @@ export default function Login() {
         <div className="marca">
           <Logo />
           <div>
-            <div className="marca-nome">VentPro</div>
-            <div className="marca-sub">Engenharia de exaustão e ventilação industrial</div>
+            <div className="marca-nome">{NOME_SOFTWARE}</div>
+            <div className="marca-sub">{SUBTITULO}</div>
           </div>
         </div>
         <label className="campo">
@@ -46,6 +47,7 @@ export default function Login() {
         <button className="btn btn-primario" type="submit" disabled={ocupado}>{ocupado ? "Entrando…" : "Entrar"}</button>
         <p className="nota">Os resultados do software são preliminares até a aprovação de um engenheiro responsável.</p>
       </form>
+      <Rodape />
     </div>
   );
 }
