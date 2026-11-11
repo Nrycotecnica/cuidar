@@ -1,0 +1,39 @@
+# Ambiente de DESENVOLVIMENTO local: docker compose up --build
+# Acesse http://localhost:8080  (usuário inicial: admin@exemplo.com / admin123)
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ventilacao
+      POSTGRES_USER: ventilacao
+      POSTGRES_PASSWORD: ventilacao
+    volumes:
+      - dados_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ventilacao"]
+      interval: 5s
+      retries: 20
+
+  app:
+    build:
+      context: .
+      args:
+        APP_VERSION: dev
+        GIT_SHA: local
+    environment:
+      APP_ENV: desenvolvimento
+      DATABASE_URL: postgresql+psycopg://ventilacao:ventilacao@db:5432/ventilacao
+      SEED_DEMO: "true"
+      # ANTHROPIC_API_KEY: defina em um arquivo .env local (não versionado) para habilitar a IA
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    ports:
+      - "8080:8000"
+    volumes:
+      - dados_arquivos:/dados/arquivos
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  dados_db:
+  dados_arquivos:

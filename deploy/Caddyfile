@@ -1,0 +1,23 @@
+# CADDY_TLS vazio = certificados públicos automáticos (Let's Encrypt).
+# Para testes locais use CADDY_TLS="tls internal".
+{$DOMINIO_HOMOLOG} {
+	{$CADDY_TLS}
+	encode gzip
+	header Strict-Transport-Security "max-age=31536000"
+	header X-Robots-Tag "noindex, nofollow"
+	request_body {
+		max_size 110MB
+	}
+	reverse_proxy app-homolog:8000
+}
+
+{$DOMINIO_PRODUCAO} {
+	{$CADDY_TLS}
+	encode gzip
+	header Strict-Transport-Security "max-age=31536000"
+	header X-Robots-Tag "noindex, nofollow"
+	request_body {
+		max_size 110MB
+	}
+	reverse_proxy app-producao:8000
+}

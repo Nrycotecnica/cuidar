@@ -1,0 +1,101 @@
+# Servidor com DOIS ambientes isolados (bancos, arquivos e imagens separados):
+#   homologação → https://${DOMINIO_HOMOLOG}
+#   produção    → https://${DOMINIO_PRODUCAO}
+# HTTPS automático pelo Caddy (Let's Encrypt). Ver deploy/LEIAME-SERVIDOR.md.
+name: ventilacao
+
+x-app: &app
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/saude', timeout=4)"]
+    interval: 15s
+    timeout: 5s
+    start_period: 60s
+    retries: 3
+
+x-db: &db
+  image: postgres:16-alpine
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+    interval: 10s
+    retries: 20
+
+services:
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["${PORTA_HTTP:-80}:80", "${PORTA_HTTPS:-443}:443"]
+    environment:
+      DOMINIO_HOMOLOG: ${DOMINIO_HOMOLOG}
+      DOMINIO_PRODUCAO: ${DOMINIO_PRODUCAO}
+      CADDY_TLS: ${CADDY_TLS:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_dados:/data
+      - caddy_config:/config
+    depends_on: [app-homolog, app-producao]
+
+  # ------------------------------------------------------------ HOMOLOGAÇÃO
+  db-homolog:
+    <<: *db
+    env_file: homolog.env
+    volumes: [db_homolog:/var/lib/postgresql/data]
+
+  app-homolog:
+    <<: *app
+    image: ${IMAGEM}:${TAG_HOMOLOG}
+    env_file: homolog.env
+    environment:
+      APP_ENV: homologacao
+    volumes: [arquivos_homolog:/dados/arquivos]
+    depends_on:
+      db-homolog: {condition: service_healthy}
+
+  backup-homolog:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: homolog.env
+    environment: {PGHOST: db-homolog, RETENCAO_DIAS: "14"}
+    volumes:
+      - ./backups/homologacao:/backups
+      - ./scripts/backup-loop.sh:/backup-loop.sh:ro
+      - arquivos_homolog:/dados/arquivos:ro
+    entrypoint: ["sh", "/backup-loop.sh"]
+    depends_on: [db-homolog]
+
+  # ------------------------------------------------------------ PRODUÇÃO
+  db-producao:
+    <<: *db
+    env_file: producao.env
+    volumes: [db_producao:/var/lib/postgresql/data]
+
+  app-producao:
+    <<: *app
+    image: ${IMAGEM}:${TAG_PRODUCAO}
+    env_file: producao.env
+    environment:
+      APP_ENV: producao
+    volumes: [arquivos_producao:/dados/arquivos]
+    depends_on:
+      db-producao: {condition: service_healthy}
+
+  backup-producao:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: producao.env
+    environment: {PGHOST: db-producao, RETENCAO_DIAS: "30"}
+    volumes:
+      - ./backups/producao:/backups
+      - ./scripts/backup-loop.sh:/backup-loop.sh:ro
+      - arquivos_producao:/dados/arquivos:ro
+    entrypoint: ["sh", "/backup-loop.sh"]
+    depends_on: [db-producao]
+
+volumes:
+  caddy_dados:
+  caddy_config:
+  db_homolog:
+  db_producao:
+  arquivos_homolog:
+  arquivos_producao:
