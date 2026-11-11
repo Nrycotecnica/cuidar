@@ -19,6 +19,7 @@ from ezdxf.enums import TextEntityAlignment
 from shapely.geometry import LineString
 
 from ..engine.trace import fmt
+from ..marca import NOME_SOFTWARE, PROGRAMADOR
 
 CAMADAS = {
     "VENT-DUTO": (1, "CONTINUOUS"),
@@ -86,6 +87,7 @@ def gerar_dxf(projeto: dict, rede: dict, resultado: dict | None, ambiente: dict 
     doc.header["$MEASUREMENT"] = 1
     doc.header["$LUNITS"] = 2
     doc.header["$INSUNITS"] = 4
+    doc.header["$LASTSAVEDBY"] = f"{NOME_SOFTWARE} ({PROGRAMADOR})"
     for nome, (cor, lt) in CAMADAS.items():
         if lt not in doc.linetypes:
             lt = "CONTINUOUS"
@@ -213,7 +215,8 @@ def gerar_dxf(projeto: dict, rede: dict, resultado: dict | None, ambiente: dict 
     x0 = (max(xs) if xs else 0) + 1500
     y0 = min(ys) if ys else 0
     linhas = [
-        "MEMÓRIA DO DESENHO",
+        f"{NOME_SOFTWARE.upper()} - MEMÓRIA DO DESENHO",
+        f"Desenvolvido por {PROGRAMADOR}",
         f"Projeto: {projeto.get('codigo', '')} - {projeto.get('nome', '')}",
         f"Cliente: {projeto.get('cliente') or '-'}",
         f"Sistema: {projeto.get('modulo_nome', projeto.get('modulo', ''))}",

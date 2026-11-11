@@ -18,6 +18,7 @@ from reportlab.pdfgen import canvas as rl_canvas
 from reportlab.platypus import KeepTogether, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from ..engine.trace import fmt
+from ..marca import ASSINATURA, NOME_SOFTWARE, PROGRAMADOR
 
 ESTILOS = getSampleStyleSheet()
 P = ParagraphStyle("p", parent=ESTILOS["BodyText"], fontSize=8.5, leading=11)
@@ -52,6 +53,7 @@ def _rodape(texto):
         c.saveState()
         c.setFont("Helvetica", 7)
         c.drawString(15 * mm, 8 * mm, texto)
+        c.drawCentredString(doc.pagesize[0] / 2, 4 * mm, ASSINATURA)
         c.drawRightString(doc.pagesize[0] - 15 * mm, 8 * mm, f"Página {doc.page}")
         c.restoreState()
     return f
@@ -92,9 +94,10 @@ def memorial_pdf(ctx: dict) -> bytes:
     pr = ctx["projeto"]
     r = ctx["resultado"]
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=15 * mm, rightMargin=15 * mm, topMargin=15 * mm, bottomMargin=15 * mm,
-                            title=f"Memorial de cálculo - {pr['codigo']}")
+                            title=f"Memorial de cálculo - {pr['codigo']}", author=PROGRAMADOR, creator=NOME_SOFTWARE)
     el = []
     el.append(Paragraph(f"Memorial de cálculo — {_esc(pr['codigo'])} — {_esc(pr['nome'])}", H1))
+    el.append(Paragraph(_esc(ASSINATURA), PS))
     if ctx.get("demonstrativo"):
         el.append(Paragraph("DADOS DEMONSTRATIVOS (FICTÍCIOS). Este documento não representa um projeto real e não pode ser usado para instalação.", ALERTA))
     if not ctx.get("aprovado"):
@@ -248,7 +251,7 @@ def memorial_pdf(ctx: dict) -> bytes:
 
 def lista_pdf(lista: dict, titulo: str) -> bytes:
     buf = io.BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), leftMargin=12 * mm, rightMargin=12 * mm, topMargin=12 * mm, bottomMargin=14 * mm, title=titulo)
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), leftMargin=12 * mm, rightMargin=12 * mm, topMargin=12 * mm, bottomMargin=14 * mm, title=titulo, author=PROGRAMADOR, creator=NOME_SOFTWARE)
     el = [Paragraph(_esc(titulo), H1), Paragraph(_esc(lista["situacao"]), ALERTA if not lista["liberado"] else P), Spacer(1, 4)]
     linhas = [["Item", "Categoria", "Código", "Descrição", "Qtd", "Un", "Custo unit. R$", "Custo total R$", "Observação"]]
     for i in lista["itens"]:
@@ -297,6 +300,8 @@ def desenho_pdf(projeto: dict, rede: dict, resultado: dict | None, ambiente: dic
     buf = io.BytesIO()
     c = rl_canvas.Canvas(buf, pagesize=(W, H))
     c.setTitle(f"Desenho - {projeto.get('codigo')}")
+    c.setAuthor(PROGRAMADOR)
+    c.setCreator(NOME_SOFTWARE)
     c.setLineWidth(0.2)
     c.setStrokeColor(colors.grey)
     if amb.get("contorno"):
@@ -366,6 +371,9 @@ def desenho_pdf(projeto: dict, rede: dict, resultado: dict | None, ambiente: dic
     c.rect(margem, margem, W - 2 * margem, carimbo_h)
     c.setFont("Helvetica-Bold", 11)
     c.drawString(margem + 4 * mm, margem + carimbo_h - 8 * mm, f"{projeto.get('codigo')} — {projeto.get('nome')}")
+    c.drawRightString(W - margem - 4 * mm, margem + carimbo_h - 8 * mm, NOME_SOFTWARE)
+    c.setFont("Helvetica", 8)
+    c.drawRightString(W - margem - 4 * mm, margem + carimbo_h - 14 * mm, f"Desenvolvido por {PROGRAMADOR}")
     c.setFont("Helvetica", 8)
     c.drawString(margem + 4 * mm, margem + carimbo_h - 14 * mm, f"Cliente: {projeto.get('cliente') or '-'}   Sistema: {projeto.get('modulo_nome')}   Escala 1:{esc} (A3)   Unidades: m")
     r = resultado or {}

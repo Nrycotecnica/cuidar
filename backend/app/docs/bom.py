@@ -16,6 +16,7 @@ import math
 from collections import defaultdict
 
 from ..engine.trace import fmt
+from ..marca import ASSINATURA
 
 ANGULOS_PADRAO = [15, 30, 45, 60, 90]
 
@@ -168,6 +169,7 @@ def gerar_lista(projeto: dict, rede: dict, resultado: dict, componentes: list[di
 def para_csv(lista: dict) -> bytes:
     buf = io.StringIO()
     w = csv.writer(buf, delimiter=";")
+    w.writerow([f"# {ASSINATURA}"])
     w.writerow([f"# {lista['situacao']}"])
     w.writerow(["Item", "Categoria", "Código", "Descrição", "Quantidade", "Unidade", "Custo unitário", "Custo total", "Observação"])
     for i in lista["itens"]:
@@ -189,11 +191,12 @@ def para_xlsx(lista: dict, titulo: str) -> bytes:
     ws.append([titulo])
     ws["A1"].font = Font(bold=True, size=13)
     ws.append([lista["situacao"]])
+    ws.append([ASSINATURA])
     ws["A2"].font = Font(bold=True, color="C00000" if not lista["liberado"] else "006100")
     ws.append([])
     cab = ["Item", "Categoria", "Código", "Descrição", "Quantidade", "Unidade", "Custo unitário (R$)", "Custo total (R$)", "Observação"]
     ws.append(cab)
-    for c in ws[4]:
+    for c in ws[5]:
         c.font = Font(bold=True, color="FFFFFF")
         c.fill = PatternFill("solid", fgColor="305496")
     for i in lista["itens"]:
