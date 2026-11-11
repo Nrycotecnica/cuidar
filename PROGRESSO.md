@@ -17,8 +17,8 @@ Legenda: ✅ funciona e foi verificado · 🟡 parcial · ⏳ não iniciado · �
 | Exportar DXF editável aberto em software CAD compatível | ✅ | Auditoria do ezdxf sem erros, leitura por parser independente (`dxf-parser`, JavaScript) e **renderização no LibreCAD 2.x** (`librecad dxf2pdf`). ⚠️ Não foi testado no AutoCAD (não disponível neste ambiente) — abra um arquivo exportado no AutoCAD da empresa para confirmar |
 | Exportar lista de componentes | ✅ | CSV, XLSX e PDF (`test_fluxo_rede_calculo_exportacao`) |
 | Anexar projeto antigo | ✅ | `test_upload_arquivo_e_projeto_antigo` (anexo + download + comparação) |
-| Testes automatizados das funcionalidades essenciais | ✅ | 47 testes backend (motor + API + assistente simulado); testes do frontend (ver abaixo) |
-| Publicar atualização em homologação sem interferir na produção | 🟡 | Mecanismo implementado (`deploy/`, `.github/workflows/deploy.yml`) e simulado localmente com Docker (ver seção Infraestrutura). 🔒 Falta um servidor e domínios reais para colocar no ar |
+| Testes automatizados das funcionalidades essenciais | ✅ | 48 testes backend (motor + API + assistente simulado) + 7 testes unitários do frontend; fluxo completo verificado no navegador (Playwright) |
+| Publicar atualização em homologação sem interferir na produção | 🟡 | Mecanismo implementado e **simulado localmente com Docker** (ver Infraestrutura): homologação 0.1.0→0.1.1 com produção intacta, retorno automático de versão defeituosa, backup/restauração. 🔒 Falta servidor, domínios e acesso do GitHub para colocar no ar |
 
 ## O que já funciona
 
@@ -38,16 +38,24 @@ Legenda: ✅ funciona e foi verificado · 🟡 parcial · ⏳ não iniciado · �
 - ✅ Assistente técnico: Claude com ferramentas somente leitura (projeto, pendências, cálculo, catálogo, comparação de exaustores pelo motor, alternativas); modo de regras sem IA quando não há chave.
 - ✅ Painel administrativo: versão instalada, commit, migração do banco, histórico de versões, auditoria.
 
-### Frontend
-- (preenchido abaixo após verificação)
+### Frontend (React + TypeScript + Vite, sem biblioteca de UI)
+- ✅ Login, painel, faixa de ambiente (cor por ambiente) com versão, selo "DEMONSTRATIVO — FICTÍCIO", ações ocultadas conforme permissões.
+- ✅ Clientes, visitas técnicas (pontos de emissão, máquinas, pilares, riscos, anexos, dados a levantar, criar projeto), projetos.
+- ✅ Projeto com abas: Dados (status de confirmação), Plantas (visualizador 2D com zoom/pan/camadas/medição/calibração/edição de detecções, imagem de fundo de PDF), Rede (editor visual: nós, trechos, arrastar, propriedades, regiões bloqueadas, roteamento, cálculo, rótulos Ø/vazão/velocidade), Cálculo (resumo, bloqueios, trechos, equilíbrio, seleção, gráfico curva × sistema, memória de cálculo, alternativas, renovação com posicionamento), Documentos, Segurança, Aprovação, Assistente, Histórico.
+- ✅ Catálogo (exaustores com editor/gráfico/consulta de curva e importação, componentes, parâmetros com aprovação), Biblioteca de projetos anteriores com comparação, Administração (versão, histórico, usuários, matriz de permissões, auditoria).
+- ✅ Verificado: `tsc` sem erros, `npm run build`, `npm test` (7 testes) e navegação ponta a ponta com Playwright (incluindo celular 390 px sem rolagem horizontal), sem erros no console.
+- 🟡 O editor não insere vértices novos em um trecho (move os existentes ou limpa o trajeto); rótulos podem se sobrepor com nós muito próximos; em PDF o texto vetorial aparece sobre a imagem de fundo.
+- 🟡 Ocultação de ações por perfil verificada pelo código e pela API (testes de permissão), não navegando com cada perfil.
 
 ### Infraestrutura
-- ✅ Dockerfile único (frontend compilado + API), `docker compose up` para desenvolvimento.
+- ✅ Dockerfile único (frontend compilado + API, sem dependências de sistema), `docker compose up` para desenvolvimento.
+- ✅ **Simulação local do servidor** (Docker, Caddy com certificado interno, imagens v0.1.0 e v0.1.1): os dois ambientes subiram saudáveis via HTTPS; homologação com dados demonstrativos e produção sem eles; atualização da homologação para 0.1.1 **sem alterar a produção** (versão e projeto da produção intactos); backup pré-atualização gerado; versão defeituosa revertida automaticamente; backup diário e restauração da produção testados; promoção da produção para 0.1.1 preservando o projeto cadastrado; histórico de versões exibido no painel.
+- 🔒 Os workflows do GitHub Actions não puderam ser executados: o envio (push) ao GitHub foi recusado por falta de acesso do Claude ao repositório.
 - ✅ Servidor com homologação e produção isolados, HTTPS automático (Caddy), backups diários, backup antes de cada atualização, retorno automático se a nova versão não ficar saudável, script de restauração.
 - ✅ GitHub Actions: CI (PostgreSQL + SQLite, `alembic check`, frontend) e publicação (main → homologação; tag → produção com aprovação; reimplantação manual de versões anteriores).
 
 ## Em andamento / próximos passos sugeridos
-1. 🔒 Contratar/definir servidor e domínios e configurar os segredos do GitHub (ver `deploy/LEIAME-SERVIDOR.md`).
+1. 🔒 Liberar o acesso do Claude ao repositório no GitHub (para enviar o código e rodar o CI), definir servidor e domínios e configurar os segredos (ver `deploy/LEIAME-SERVIDOR.md`).
 2. 🔒 Substituir os dados demonstrativos por dados reais: curvas dos exaustores fabricados, catálogo de dutos e custos, e parâmetros técnicos com referência — e aprová-los.
 3. Validar o motor contra projetos antigos reais da empresa (Biblioteca) e registrar os casos como testes de referência.
 4. Abrir os DXF exportados no AutoCAD da empresa e ajustar padrões de camadas/cores/textos ao padrão interno.

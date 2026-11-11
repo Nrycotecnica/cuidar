@@ -129,9 +129,10 @@ def config_rede(db: Session, projeto: Projeto, estrategia: str) -> dict:
 def executar_rede(db: Session, projeto: Projeto, rede: Rede, estrategia: str = "menor_perda", exaustor_id: int | None = None) -> dict:
     ps = parametros(db)
     cfg = config_rede(db, projeto, estrategia)
-    for k in ("temperatura_c", "altitude_m"):
-        if valor(projeto, k) is None:
-            raise HTTPException(422, f"Informe '{k}' nos dados de entrada do projeto antes de calcular.")
+    rotulos = {c[0]: c[1] for c in campos_modulo(projeto.modulo)}
+    faltam = [rotulos.get(k, k) for k in ("temperatura_c", "altitude_m") if valor(projeto, k) is None]
+    if faltam:
+        raise HTTPException(422, "Informe nos dados de entrada do projeto antes de calcular: " + ", ".join(faltam) + ".")
     try:
         res = analisar_rede(rede.dados or {}, cfg, ps)
     except RedeInvalida as e:

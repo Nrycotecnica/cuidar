@@ -7,7 +7,7 @@ name: ventilacao
 x-app: &app
   restart: unless-stopped
   healthcheck:
-    test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/saude"]
+    test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/saude', timeout=4)"]
     interval: 15s
     timeout: 5s
     start_period: 60s

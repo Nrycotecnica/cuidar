@@ -315,3 +315,12 @@ def test_admin_versao_e_auditoria(client, admin):
     assert v["versao_motor"]
     assert client.get("/api/admin/versoes", headers=admin).json()
     assert client.get("/api/admin/auditoria", headers=admin).json()
+
+
+def test_parametro_demo_continua_demo_com_referencia_demo(client, usuarios):
+    from app.engine.demo_params import REF
+    h = usuarios["engenheiro"]
+    par = next(x for x in client.get("/api/parametros", headers=h).json() if x["chave"] == "fator_coifa")
+    r = client.put(f"/api/parametros/{par['id']}", headers=h, json={"valor": 1.5, "referencia": REF}).json()
+    assert r["demonstrativo"] is True
+    assert client.post(f"/api/parametros/{par['id']}/aprovar", headers=h).status_code == 409

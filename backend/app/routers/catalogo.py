@@ -11,6 +11,7 @@ from ..audit import registrar
 from ..db import get_db
 from ..engine import units
 from ..engine.air import densidade
+from ..engine.demo_params import REF as REF_DEMO
 from ..engine.fans import Curva, CurvaInvalida
 from ..models import ComponenteDuto, Exaustor, ParametroTecnico, Usuario
 from ..security import exige, tem
@@ -316,8 +317,9 @@ def editar_par(pid: int, d: dict, u: Usuario = Depends(exige("parametros.editar"
     if "valor" in alt or "referencia" in alt or "unidade" in alt:
         p.status = "proposto"
         p.aprovado_por = p.aprovado_em = None
-        if "referencia" in alt or "valor" in alt:
-            p.demonstrativo = False if d.get("referencia") else p.demonstrativo
+        ref = (d.get("referencia") or "").strip()
+        if "referencia" in alt and ref and ref != REF_DEMO:
+            p.demonstrativo = False
     registrar(db, u, "editar", "parametro", p.id, {"chave": p.chave, **alt})
     db.commit()
     return to_dict(p)

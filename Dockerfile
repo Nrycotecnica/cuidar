@@ -10,10 +10,7 @@ RUN npm run build
 
 FROM python:3.13-slim-bookworm AS app
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
-RUN apt-get update \
- && apt-get install -y --no-install-recommends postgresql-client curl \
- && rm -rf /var/lib/apt/lists/* \
- && useradd --create-home --uid 1000 app
+RUN useradd --create-home --uid 1000 app
 WORKDIR /app/backend
 COPY backend/requirements.txt ./
 RUN pip install -r requirements.txt
@@ -31,6 +28,7 @@ ENV APP_VERSION=${APP_VERSION} GIT_SHA=${GIT_SHA} BUILD_DATE=${BUILD_DATE} \
 
 USER app
 EXPOSE 8000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 CMD curl -fsS http://localhost:8000/api/saude || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+  CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/saude', timeout=4)"]
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]

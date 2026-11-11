@@ -24,12 +24,23 @@ if [ -n "$("${COMPOSE[@]}" ps -q --status running "$DB")" ]; then
   echo ">> backup pré-atualização: $ARQ"
 fi
 
+reverter() {
+  echo "!! $1. Revertendo $SVC para $ANTERIOR" >&2
+  sed -i "s|^$VAR=.*|$VAR=$ANTERIOR|" .env
+  "${COMPOSE[@]}" up -d --no-deps "$SVC" || true
+  echo "$(date -Is) $AMB $ANTERIOR -> $TAG FALHOU ($1; revertido)" >> historico-implantacoes.log
+  echo "!! Se a nova versão aplicou migrações de banco, restaure com: ./scripts/restaurar.sh $AMB $ARQ" >&2
+  exit 1
+}
+
 sed -i "s|^$VAR=.*|$VAR=$TAG|" .env
-if [ -z "${SEM_PULL:-}" ]; then "${COMPOSE[@]}" pull "$SVC"; fi
-"${COMPOSE[@]}" up -d --no-deps "$SVC"
+if [ -z "${SEM_PULL:-}" ]; then
+  "${COMPOSE[@]}" pull "$SVC" || reverter "falha ao baixar a imagem $TAG"
+fi
+"${COMPOSE[@]}" up -d --no-deps "$SVC" || reverter "falha ao iniciar o contêiner"
 
 echo ">> aguardando verificação de saúde de $SVC..."
-for _ in $(seq 1 40); do
+for _ in $(seq 1 ${TENTATIVAS_SAUDE:-40}); do
   CID=$("${COMPOSE[@]}" ps -q "$SVC")
   ST=$(docker inspect -f '{{.State.Health.Status}}' "$CID" 2>/dev/null || echo "?")
   if [ "$ST" = "healthy" ]; then
@@ -39,10 +50,4 @@ for _ in $(seq 1 40); do
   fi
   sleep 5
 done
-
-echo "!! $SVC não ficou saudável. Revertendo para $ANTERIOR" >&2
-sed -i "s|^$VAR=.*|$VAR=$ANTERIOR|" .env
-"${COMPOSE[@]}" up -d --no-deps "$SVC"
-echo "$(date -Is) $AMB $ANTERIOR -> $TAG FALHOU (revertido)" >> historico-implantacoes.log
-echo "!! Se a nova versão aplicou migrações de banco, restaure com: ./scripts/restaurar.sh $AMB $ARQ" >&2
-exit 1
+reverter "o contêiner não ficou saudável"
