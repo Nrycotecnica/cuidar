@@ -19,3 +19,7 @@ deploy/homolog.env
 deploy/producao.env
 deploy/backups/
 deploy/historico-implantacoes.log
+# Instalação local
+deploy/local/.env
+deploy/local/backups/
+deploy/local/atualizacoes.log

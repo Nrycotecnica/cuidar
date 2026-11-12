@@ -1,8 +1,12 @@
 # Publicação online (homologação e produção)
 
-Há duas formas suportadas. **A escolhida para começar é o Render** (plataforma gerenciada); a opção de servidor próprio (VPS) continua documentada mais abaixo.
+> **Decisão atual (12/11/2026): começar com a instalação LOCAL**, sem custo — ver [`deploy/local/LEIAME.md`](local/LEIAME.md).
+> O Render foi testado e funcionou, mas será cancelado ([`CANCELAR-RENDER.md`](CANCELAR-RENDER.md)); o `render.yaml` foi retirado do repositório.
+> Alternativa futura avaliada: Google Cloud Run (conta Firebase existente) + Supabase PostgreSQL, exigindo adaptar o armazenamento de arquivos.
 
-## Opção 1 — Render (plataforma gerenciada) — recomendada
+## Opção 1 — Render (plataforma gerenciada) — DESATIVADA (histórico)
+
+O conteúdo abaixo descreve a configuração usada no teste; para reativar, recupere o `render.yaml` no histórico do Git (commit "Publicação no Render").
 
 O arquivo [`render.yaml`](../render.yaml) (Blueprint) cria o projeto **lki-industrial** com dois ambientes isolados:
 
