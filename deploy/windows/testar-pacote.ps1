@@ -9,7 +9,11 @@ $Url = 'http://127.0.0.1:8080'
 $ferr = Join-Path $env:LOCALAPPDATA 'LkiIndustrial\ferramentas'
 function Confere($cond, $msg) { if (-not $cond) { throw "FALHOU: $msg" } else { Write-Host "OK: $msg" -ForegroundColor Green } }
 function Login { (Invoke-RestMethod -Method Post "$Url/api/auth/login" -ContentType 'application/json' -Body (@{ email = 'teste@lki.local'; senha = 'SenhaTeste123' } | ConvertTo-Json)).token }
-function Mostrar-Logs { Get-ChildItem (Join-Path $env:LOCALAPPDATA 'LkiIndustrial\dados\logs') -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "--- $($_.Name)"; Get-Content $_.FullName -Tail 40 } }
+function Mostrar-Logs {
+    $r = Join-Path $env:LOCALAPPDATA 'LkiIndustrial'
+    @(Get-ChildItem (Join-Path $r 'dados\logs') -ErrorAction SilentlyContinue) + @(Get-Item (Join-Path $r 'instalador.log') -ErrorAction SilentlyContinue) |
+        ForEach-Object { Write-Host "--- $($_.Name)"; Get-Content $_.FullName -Tail 40 }
+}
 
 try {
     # 1. instalacao
@@ -68,6 +72,30 @@ try {
     & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $ferr 'abrir.ps1') -SemNavegador
     Confere ((Invoke-RestMethod "$Url/api/saude").status -eq 'ok') 'LKI INDUSTRIAL abriu de novo'
     Confere (@(Get-ChildItem (Join-Path $env:LOCALAPPDATA 'LkiIndustrial\dados\backups') -Filter '*.sqlite').Count -ge 1) 'backups do banco gerados'
+
+    # 7. como o usuario final: desinstalar e instalar pelo .exe, com firewall
+    $raiz = Join-Path $env:LOCALAPPDATA 'LkiIndustrial'
+    $chave = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\LkiIndustrial'
+    Confere ((Get-ItemProperty $chave -ErrorAction SilentlyContinue).DisplayName -eq 'LKI INDUSTRIAL') 'aparece em Aplicativos instalados'
+    & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $ferr 'desinstalar.ps1') -Silencioso
+    Confere (-not (Test-Path (Join-Path $raiz 'programa'))) 'desinstalado (programa removido)'
+    Confere (-not (Test-Path $chave)) 'removido de Aplicativos instalados'
+    Confere (Test-Path (Join-Path $raiz 'dados\app.db')) 'dados mantidos apos desinstalar'
+    $exe = Join-Path $out 'LKI-INDUSTRIAL-Instalador.exe'
+    $p = Start-Process $exe -ArgumentList '/silencioso', '/email:teste@lki.local', '/senha:SenhaTeste123', '/firewall' -Wait -PassThru
+    Confere ($p.ExitCode -eq 0) 'instalador .exe concluiu'
+    Confere ((Invoke-RestMethod "$Url/api/saude").status -eq 'ok') 'sistema no ar apos instalar pelo .exe'
+    Confere ((Get-ItemProperty $chave).Publisher -eq 'Diego Pereira') 'registrado no Windows com o editor'
+    Confere ($null -ne (Get-NetFirewallRule -DisplayName 'LKI INDUSTRIAL (rede local)' -ErrorAction SilentlyContinue)) 'regra do firewall criada'
+    $regra = Get-NetFirewallRule -DisplayName 'LKI INDUSTRIAL (rede local)' | Get-NetFirewallAddressFilter
+    Confere ("$($regra.RemoteAddress)" -match 'LocalSubnet') 'firewall restrito a rede local'
+    $escuta = @(Get-NetTCPConnection -LocalPort 8080 -State Listen | Select-Object -ExpandProperty LocalAddress)
+    Confere ($escuta -contains '0.0.0.0') 'sistema atendendo a rede local'
+    $h = @{ Authorization = 'Bearer ' + (Login) }
+    Confere (((Invoke-RestMethod "$Url/api/clientes" -Headers $h) | Where-Object { $_.nome -eq 'Cliente criado antes da atualizacao' })) 'dados preservados na reinstalacao'
+    $p = Start-Process $exe -ArgumentList '/silencioso', '/firewall' -Wait -PassThru
+    Confere ($p.ExitCode -eq 0) '.exe em modo atualizacao (mesma versao) sem erro'
+    Confere ((Invoke-RestMethod "$Url/api/saude").status -eq 'ok') 'sistema no ar apos rodar o .exe de novo'
     Write-Host 'TODOS OS TESTES DO PACOTE WINDOWS PASSARAM' -ForegroundColor Green
 } catch {
     Write-Host $_ -ForegroundColor Red

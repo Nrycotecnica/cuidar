@@ -132,17 +132,21 @@ function ManifestoRemoto {
     try { return Invoke-RestMethod ($UrlBase + '/versao.json?t=' + [DateTime]::UtcNow.Ticks) -TimeoutSec 15 } catch { return $null }
 }
 
-function CriarAtalho($nome, $script, $descricao, [switch]$Minimizado) {
+function CriarAtalho($nome, $script, $descricao, [switch]$Minimizado, [switch]$SoMenu) {
     $ps = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
     $shell = New-Object -ComObject WScript.Shell
     $estilo = if ($Minimizado) { '-WindowStyle Minimized ' } else { '' }
-    foreach ($pasta in @([Environment]::GetFolderPath('Desktop'), (Join-Path ([Environment]::GetFolderPath('Programs')) 'LKI INDUSTRIAL'))) {
+    $pastas = @((Join-Path ([Environment]::GetFolderPath('Programs')) 'LKI INDUSTRIAL'))
+    if (-not $SoMenu) { $pastas += [Environment]::GetFolderPath('Desktop') }
+    $icone = Join-Path $Raiz 'lki.ico'
+    foreach ($pasta in $pastas) {
         New-Item -ItemType Directory -Force -Path $pasta | Out-Null
         $a = $shell.CreateShortcut((Join-Path $pasta ($nome + '.lnk')))
         $a.TargetPath = $ps
         $a.Arguments = "-NoProfile -ExecutionPolicy Bypass $estilo-File `"$(Join-Path $Ferramentas $script)`""
         $a.WorkingDirectory = $Ferramentas
         $a.Description = $descricao
+        if (Test-Path $icone) { $a.IconLocation = $icone }
         $a.Save()
     }
 }
@@ -151,4 +155,26 @@ function BaixarPacote($man, $destinoZip) {
     Invoke-WebRequest ($UrlBase + '/' + $man.arquivo) -OutFile $destinoZip -UseBasicParsing -TimeoutSec 900
     $h = (Get-FileHash $destinoZip -Algorithm SHA256).Hash.ToLower()
     return ($h -eq $man.sha256.ToLower())
+}
+
+# Entrada em "Configuracoes > Aplicativos > Aplicativos instalados" (por usuario,
+# sem administrador), com versao, editor e o botao Desinstalar.
+function RegistrarNoWindows {
+    $ico = Join-Path $Programa 'lki.ico'
+    if (Test-Path $ico) { Copy-Item $ico (Join-Path $Raiz 'lki.ico') -Force }
+    $v = LerVersao $Programa
+    $k = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\LkiIndustrial'
+    New-Item -Path $k -Force | Out-Null
+    $ps = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    $tam = [int]((Get-ChildItem $Programa -Recurse -File -ErrorAction SilentlyContinue | Measure-Object Length -Sum).Sum / 1KB)
+    $valores = @{
+        DisplayName = 'LKI INDUSTRIAL'; Publisher = 'Diego Pereira'
+        DisplayVersion = $(if ($v) { $v.versao } else { '' })
+        InstallLocation = $Raiz; DisplayIcon = (Join-Path $Raiz 'lki.ico')
+        UninstallString = "`"$ps`" -NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $Ferramentas 'desinstalar.ps1')`""
+    }
+    foreach ($n in $valores.Keys) { Set-ItemProperty -Path $k -Name $n -Value $valores[$n] }
+    Set-ItemProperty -Path $k -Name NoModify -Value 1 -Type DWord
+    Set-ItemProperty -Path $k -Name NoRepair -Value 1 -Type DWord
+    Set-ItemProperty -Path $k -Name EstimatedSize -Value $tam -Type DWord
 }

@@ -31,7 +31,8 @@ Copy-Item (Join-Path $repo 'backend\alembic.ini') (Join-Path $pk 'backend')
 Copy-Item (Join-Path $repo 'VERSION') $pk
 Copy-Item (Join-Path $repo 'frontend\dist') (Join-Path $pk 'frontend\dist') -Recurse
 Get-ChildItem $pk -Recurse -Directory -Filter '__pycache__' | Remove-Item -Recurse -Force
-foreach ($f in 'lki-comum.ps1', 'abrir.ps1', 'atualizar.ps1', 'fechar.ps1', 'desinstalar.ps1') {
+Copy-Item (Join-Path $PSScriptRoot 'lki.ico') $pk
+foreach ($f in 'lki-comum.ps1', 'abrir.ps1', 'atualizar.ps1', 'fechar.ps1', 'desinstalar.ps1', 'liberar-rede.ps1') {
     Copy-Item (Join-Path $PSScriptRoot $f) (Join-Path $pk 'ferramentas')
 }
 $ver = (Get-Content (Join-Path $repo 'VERSION')).Trim()
@@ -46,4 +47,16 @@ $man = [ordered]@{ versao = $ver; sha = $sha; data = $info.data; arquivo = 'LKI-
 ($man | ConvertTo-Json) | Set-Content (Join-Path $out 'versao.json') -Encoding utf8
 Copy-Item (Join-Path $PSScriptRoot 'instalar.ps1'), (Join-Path $PSScriptRoot 'INSTALAR-LKI-INDUSTRIAL.cmd') $out
 Remove-Item (Join-Path $out 'py.zip')
+
+# Instalador .exe (C# compilado pelo csc do .NET Framework 4 que ja vem no
+# Windows), com o pacote, o manifesto e o instalar.ps1 embutidos.
+$csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
+if (-not (Test-Path $csc)) { $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319\csc.exe' }
+$exe = Join-Path $out 'LKI-INDUSTRIAL-Instalador.exe'
+& $csc /nologo /target:winexe /optimize+ "/out:$exe" "/win32icon:$(Join-Path $PSScriptRoot 'lki.ico')" "/win32manifest:$(Join-Path $PSScriptRoot 'lki.manifest')" `
+    /r:System.Windows.Forms.dll /r:System.Drawing.dll `
+    "/resource:$zip,LKI-INDUSTRIAL-windows.zip" "/resource:$(Join-Path $out 'versao.json'),versao.json" "/resource:$(Join-Path $PSScriptRoot 'instalar.ps1'),instalar.ps1" `
+    (Join-Path $PSScriptRoot 'LkiInstalador.cs')
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path $exe)) { throw 'falha ao compilar o instalador .exe' }
+Write-Host "Instalador: $exe ($([math]::Round((Get-Item $exe).Length / 1MB)) MB)"
 Write-Host "Pacote: $zip ($([math]::Round($man.tamanho / 1MB)) MB)"
