@@ -17,6 +17,7 @@ from collections import defaultdict
 from typing import Any
 
 from . import ENGINE_VERSION
+from .cotas import analisar_cotas
 from .air import area_circular, densidade, pressao_dinamica, viscosidade_dinamica
 from .friction import diametro_hidraulico_retangular, fator_atrito_colebrook, perda_atrito, reynolds
 from .geometry import angulo_entre, angulos_internos, comprimento_polilinha, direcao, limpar
@@ -210,6 +211,17 @@ def analisar_rede(rede: dict[str, Any], config: dict[str, Any], params: Paramete
         trace.bloqueio("Nenhum diâmetro de duto disponível no catálogo")
         diametros = []
 
+    # Cotas: pernas verticais deduzidas das alturas informadas (ver cotas.py)
+    cotas = analisar_cotas(rede)
+    if cotas:
+        trace.hipotese(
+            "Cotas informadas: cada descida/subida entre o trecho horizontal e o captor, equipamento "
+            "ou outro trecho entra no comprimento (|Δz|) com uma curva de 90° no topo; a ligação na "
+            "ponta de baixo (boca do captor ou bocal) é considerada sem curva adicional."
+        )
+        for nid in cotas["sem_cota"]:
+            trace.aviso(f"Cota do nó {nos[nid].get('label') or nid} não informada: a descida até ele não entrou no cálculo")
+
     # Geometria e dimensionamento de cada trecho
     material_padrao = config.get("material_padrao", "galvanizado")
     res_seg: dict[str, dict] = {}
@@ -251,6 +263,17 @@ def analisar_rede(rede: dict[str, Any], config: dict[str, Any], params: Paramete
             trace.bloqueio(f"{rot}: rugosidade do material '{mat}' não cadastrada")
             eps_mm = 0.0
         L = comprimento_polilinha(pts) + float(s.get("comprimento_extra_m") or 0.0)
+        vert = cotas["trechos"][sid] if cotas else None
+        if vert and vert["pernas"]:
+            L += vert["vertical_m"]
+            trace.add(
+                f"{rot}: trechos verticais",
+                "L_vertical = Σ |cota do nó − cota do trecho|",
+                "; ".join(f"{nos[p['no']].get('label') or p['no']}: {fmt(p['cota_no_m'],2)} m ↔ {fmt(vert['cota_m'],2)} m" for p in vert["pernas"]),
+                vert["vertical_m"], "m",
+            )
+            if s.get("comprimento_extra_m"):
+                trace.aviso(f"{rot}: há comprimento extra informado e também cotas — confira se a descida não foi contada duas vezes")
         if v > 0:
             re = reynolds(rho, v, dh, mu)
             f = fator_atrito_colebrook(re, eps_mm / 1000.0 / dh)
@@ -269,6 +292,8 @@ def analisar_rede(rede: dict[str, Any], config: dict[str, Any], params: Paramete
             "velocidade_ms": v, "vp_pa": vp, "reynolds": re, "fator_atrito": f,
             "rugosidade_mm": eps_mm, "comprimento_m": L, "perda_atrito_pa": dp_atr,
             "singulares": [], "curvas": [], "path": pts,
+            "cota_m": vert["cota_m"] if vert else None,
+            "pernas_verticais": vert["pernas"] if vert else [],
         }
         trace.add(
             f"{rot}: velocidade e pressão dinâmica",
@@ -290,6 +315,10 @@ def analisar_rede(rede: dict[str, Any], config: dict[str, Any], params: Paramete
 
     # Curvas internas aos trechos
     for sid, pts in pts_seg.items():
+        for perna in res_seg[sid]["pernas_verticais"]:
+            sentido = "descida" if perna["dz_m"] < 0 else "subida"
+            add_k(sid, "curva", _k_curva(params, 90.0), f"Curva 90° ({sentido} até {nos[perna['no']].get('label') or perna['no']})")
+            res_seg[sid]["curvas"].append(90.0)
         for ang in angulos_internos(pts):
             k = _k_curva(params, ang)
             add_k(sid, "curva", k, f"Curva {fmt(ang,0)}°")

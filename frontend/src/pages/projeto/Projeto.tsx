@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Abas, Alerta, Carregando, SeloDemo, SeloStatus } from "../../components/ui";
 import { api } from "../../lib/api";
@@ -12,6 +12,9 @@ import Seguranca from "./Seguranca";
 import Aprovacao from "./Aprovacao";
 import Assistente from "./Assistente";
 import Historico from "./Historico";
+
+// three.js pesa ~600 kB: só é baixado quando alguém abre a aba 3D
+const Vista3D = lazy(() => import("./Vista3D"));
 
 export interface CtxProjeto {
   projeto: any;
@@ -59,6 +62,7 @@ export default function Projeto() {
     { id: "dados", rotulo: "Dados" },
     { id: "plantas", rotulo: "Plantas" },
     { id: "rede", rotulo: projeto.modulo === "renovacao" ? "Rede / layout" : "Rede de dutos" },
+    { id: "3d", rotulo: "3D" },
     { id: "calculo", rotulo: "Cálculo" },
     { id: "documentos", rotulo: "Documentos" },
     { id: "seguranca", rotulo: "Segurança" },
@@ -83,6 +87,7 @@ export default function Projeto() {
       {aba === "dados" && <Dados ctx={ctx} />}
       {aba === "plantas" && <Plantas ctx={ctx} />}
       {aba === "rede" && <Rede ctx={ctx} />}
+      {aba === "3d" && <Suspense fallback={<Carregando texto="Abrindo a vista 3D…" />}><Vista3D ctx={ctx} /></Suspense>}
       {aba === "calculo" && <Calculo ctx={ctx} />}
       {aba === "documentos" && <Documentos ctx={ctx} />}
       {aba === "seguranca" && <Seguranca ctx={ctx} />}

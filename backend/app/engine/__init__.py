@@ -6,4 +6,7 @@ inventado aqui: coeficientes dependentes de norma/material/contaminante chegam
 pelo ``ParameterSet`` e são registrados com seu status de aprovação.
 """
 
-ENGINE_VERSION = "0.1.0"
+# 0.2.0: descidas/subidas verticais a partir das cotas (cotas.py). Cálculos
+# antigos guardam a versão com que foram feitos — é ela que diz se a descida
+# até o captor estava ou não no comprimento.
+ENGINE_VERSION = "0.2.0"
