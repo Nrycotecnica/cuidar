@@ -21,6 +21,7 @@ jobs:
   pacote:
     name: Montar e testar no Windows
     runs-on: windows-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

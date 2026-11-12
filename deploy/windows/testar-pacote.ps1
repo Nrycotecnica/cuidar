@@ -82,7 +82,8 @@ try {
     Confere (-not (Test-Path $chave)) 'removido de Aplicativos instalados'
     Confere (Test-Path (Join-Path $raiz 'dados\app.db')) 'dados mantidos apos desinstalar'
     $exe = Join-Path $out 'LKI-INDUSTRIAL-Instalador.exe'
-    $p = Start-Process $exe -ArgumentList '/silencioso', '/email:teste@lki.local', '/senha:SenhaTeste123', '/firewall' -Wait -PassThru
+    $p = Start-Process $exe -ArgumentList '/silencioso', '/email:teste@lki.local', '/senha:SenhaTeste123', '/firewall' -PassThru
+    Confere ($p.WaitForExit(600000)) 'instalador .exe terminou (sem travar)'
     Confere ($p.ExitCode -eq 0) 'instalador .exe concluiu'
     Confere ((Invoke-RestMethod "$Url/api/saude").status -eq 'ok') 'sistema no ar apos instalar pelo .exe'
     Confere ((Get-ItemProperty $chave).Publisher -eq 'Diego Pereira') 'registrado no Windows com o editor'
@@ -93,7 +94,8 @@ try {
     Confere ($escuta -contains '0.0.0.0') 'sistema atendendo a rede local'
     $h = @{ Authorization = 'Bearer ' + (Login) }
     Confere (((Invoke-RestMethod "$Url/api/clientes" -Headers $h) | Where-Object { $_.nome -eq 'Cliente criado antes da atualizacao' })) 'dados preservados na reinstalacao'
-    $p = Start-Process $exe -ArgumentList '/silencioso', '/firewall' -Wait -PassThru
+    $p = Start-Process $exe -ArgumentList '/silencioso', '/firewall' -PassThru
+    Confere ($p.WaitForExit(600000)) '.exe em modo atualizacao terminou (sem travar)'
     Confere ($p.ExitCode -eq 0) '.exe em modo atualizacao (mesma versao) sem erro'
     Confere ((Invoke-RestMethod "$Url/api/saude").status -eq 'ok') 'sistema no ar apos rodar o .exe de novo'
     Write-Host 'TODOS OS TESTES DO PACOTE WINDOWS PASSARAM' -ForegroundColor Green

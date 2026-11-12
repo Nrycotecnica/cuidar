@@ -314,7 +314,14 @@ namespace LkiIndustrial
             p.Start();
             p.BeginOutputReadLine();
             p.BeginErrorReadLine();
-            p.WaitForExit();
+            // NUNCA WaitForExit() sem prazo: ele espera tambem o fim da saida
+            // redirecionada, e o servidor do sistema (iniciado pelo script e que
+            // continua rodando) herda esse canal - a espera nunca terminava e o
+            // instalador ficava parado em "Instalando..." (achado no teste em
+            // Windows real, que ficou 6 h travado). Com prazo, a espera termina
+            // quando o PowerShell sai, mesmo com o canal ainda aberto.
+            while (!p.WaitForExit(500)) { }
+            Thread.Sleep(300);   // ultimas linhas do registro
             return p.ExitCode;
         }
 
