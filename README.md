@@ -86,7 +86,7 @@ cd frontend && npm test && npm run build
 
 ## Instalação no Windows — um arquivo só (forma recomendada)
 
-Ver [`deploy/windows/LEIAME.md`](deploy/windows/LEIAME.md): baixe `INSTALAR-LKI-INDUSTRIAL.cmd` e dê dois cliques. Sem Docker, sem administrador. Atualização pelo atalho **ATUALIZAR LKI INDUSTRIAL**.
+Ver [`deploy/windows/LEIAME.md`](deploy/windows/LEIAME.md): baixe [`LKI-INDUSTRIAL-Instalador.exe`](https://github.com/Nrycotecnica/cuidar/releases/download/lki-windows/LKI-INDUSTRIAL-Instalador.exe) e dê dois cliques — já traz o programa inteiro e libera o acesso pela rede local no firewall (só rede local). Sem Docker, sem administrador. Atualização pelo atalho **ATUALIZAR LKI INDUSTRIAL**. Alternativa pelo terminal: `INSTALAR-LKI-INDUSTRIAL.cmd`.
 
 ## Instalação local com Docker (alternativa)
 
