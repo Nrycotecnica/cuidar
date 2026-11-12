@@ -84,9 +84,13 @@ cd frontend && npm test && npm run build
 8. **Segurança / Aprovação**: declarar riscos, cumprir checklists, enviar para revisão; o engenheiro aprova (bloqueado enquanto houver pendências) e libera para fabricação.
 9. **Biblioteca de Projetos Anteriores**: anexar projetos antigos e comparar com projetos gerados.
 
-## Instalação local (forma atual de uso)
+## Instalação no Windows — um arquivo só (forma recomendada)
 
-Ver [`deploy/local/LEIAME.md`](deploy/local/LEIAME.md): roda no próprio computador (Windows + Docker Desktop), atualiza sozinho a cada 30 minutos a partir do GitHub e faz backup diário.
+Ver [`deploy/windows/LEIAME.md`](deploy/windows/LEIAME.md): baixe `INSTALAR-LKI-INDUSTRIAL.cmd` e dê dois cliques. Sem Docker, sem administrador. Atualização pelo atalho **ATUALIZAR LKI INDUSTRIAL**.
+
+## Instalação local com Docker (alternativa)
+
+Ver [`deploy/local/LEIAME.md`](deploy/local/LEIAME.md): roda no próprio computador com Docker Desktop (PostgreSQL), atalho ATUALIZAR e backup diário.
 
 ## Publicação online
 
