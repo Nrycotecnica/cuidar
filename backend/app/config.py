@@ -49,6 +49,12 @@ class Settings(BaseSettings):
                 return "postgresql+psycopg://" + v[len(prefixo):]
         return v
 
+    @field_validator("app_version")
+    @classmethod
+    def _versao_padrao(cls, v: str) -> str:
+        """Builds sem a variável (ex.: Render) usam o arquivo VERSION do repositório."""
+        return v.strip() or _versao_arquivo()
+
     @field_validator("git_sha")
     @classmethod
     def _sha_render(cls, v: str) -> str:
