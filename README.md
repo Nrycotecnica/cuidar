@@ -84,6 +84,10 @@ cd frontend && npm test && npm run build
 8. **Segurança / Aprovação**: declarar riscos, cumprir checklists, enviar para revisão; o engenheiro aprova (bloqueado enquanto houver pendências) e libera para fabricação.
 9. **Biblioteca de Projetos Anteriores**: anexar projetos antigos e comparar com projetos gerados.
 
+## Instalação local (forma atual de uso)
+
+Ver [`deploy/local/LEIAME.md`](deploy/local/LEIAME.md): roda no próprio computador (Windows + Docker Desktop), atualiza sozinho a cada 30 minutos a partir do GitHub e faz backup diário.
+
 ## Publicação online
 
 Ver [`deploy/LEIAME-SERVIDOR.md`](deploy/LEIAME-SERVIDOR.md): push na `main` publica em **homologação**; tag `vX.Y.Z` publica em **produção** após aprovação; qualquer versão anterior pode ser reimplantada pelo GitHub Actions. Backup automático antes de cada atualização e diariamente.

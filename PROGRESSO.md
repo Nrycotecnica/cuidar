@@ -49,13 +49,15 @@ Legenda: ✅ funciona e foi verificado · 🟡 parcial · ⏳ não iniciado · �
 
 ### Infraestrutura
 - ✅ Dockerfile único (frontend compilado + API, sem dependências de sistema), `docker compose up` para desenvolvimento.
+- ✅ **Instalação local** (`deploy/local`): Docker Compose + scripts PowerShell (instalação, atualização automática a cada 30 min com backup prévio, desinstalação). Pilha testada em Linux com a mesma imagem (sistema no ar, login, backup diário e backup pré-atualização). 🟡 Os scripts PowerShell não puderam ser executados neste ambiente (sem Windows): primeira execução real será no computador do usuário.
+- ✅ Publicado e testado no Render (homologação e produção no ar em 11/11/2026); será cancelado por decisão de custo.
 - ✅ **Simulação local do servidor** (Docker, Caddy com certificado interno, imagens v0.1.0 e v0.1.1): os dois ambientes subiram saudáveis via HTTPS; homologação com dados demonstrativos e produção sem eles; atualização da homologação para 0.1.1 **sem alterar a produção** (versão e projeto da produção intactos); backup pré-atualização gerado; versão defeituosa revertida automaticamente; backup diário e restauração da produção testados; promoção da produção para 0.1.1 preservando o projeto cadastrado; histórico de versões exibido no painel.
 - 🔒 Os workflows do GitHub Actions não puderam ser executados: o envio (push) ao GitHub foi recusado por falta de acesso do Claude ao repositório.
 - ✅ Servidor com homologação e produção isolados, HTTPS automático (Caddy), backups diários, backup antes de cada atualização, retorno automático se a nova versão não ficar saudável, script de restauração.
 - ✅ GitHub Actions: CI (PostgreSQL + SQLite, `alembic check`, frontend) e publicação (main → homologação; tag → produção com aprovação; reimplantação manual de versões anteriores).
 
 ## Em andamento / próximos passos sugeridos
-1. 🔒 Aplicar o Blueprint no Render (criar tag `v0.1.0`, *New → Blueprint*, preencher senhas) e apontar o domínio (ver `deploy/LEIAME-SERVIDOR.md`, Opção 1).
+1. Instalar localmente no computador do Diego (`deploy/local/LEIAME.md`) e cancelar o Render (`deploy/CANCELAR-RENDER.md`). Avaliar depois Google Cloud Run (Firebase) + Supabase para acesso externo.
 2. 🔒 Substituir os dados demonstrativos por dados reais: curvas dos exaustores fabricados, catálogo de dutos e custos, e parâmetros técnicos com referência — e aprová-los.
 3. Validar o motor contra projetos antigos reais da empresa (Biblioteca) e registrar os casos como testes de referência.
 4. Abrir os DXF exportados no AutoCAD da empresa e ajustar padrões de camadas/cores/textos ao padrão interno.

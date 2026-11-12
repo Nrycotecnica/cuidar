@@ -1,0 +1,56 @@
+# Lki Industrial — instalação LOCAL (um computador, Windows/Linux/macOS com Docker).
+# Criado e mantido pelos scripts instalar.ps1 / atualizar.ps1 desta pasta.
+#   Acesso neste computador:   http://localhost:8080
+#   Acesso pela rede local:    http://<IP-deste-computador>:8080
+name: lki-local
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: lki
+      POSTGRES_USER: lki
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no arquivo .env}
+    volumes:
+      - banco:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lki"]
+      interval: 5s
+      retries: 30
+
+  app:
+    image: ghcr.io/nrycotecnica/cuidar:${TAG:-main}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://lki:${POSTGRES_PASSWORD}@db:5432/lki
+    ports:
+      - "${PORTA:-8080}:8000"
+    volumes:
+      - arquivos:/dados
+    depends_on:
+      db:
+        condition: service_healthy
+
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGUSER: lki
+      PGDATABASE: lki
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      RETENCAO_DIAS: "14"
+    volumes:
+      - ./backups:/backups
+      - ../scripts/backup-loop.sh:/backup-loop.sh:ro
+      - arquivos:/dados:ro
+    entrypoint: ["sh", "/backup-loop.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  banco:
+  arquivos:
