@@ -1,0 +1,80 @@
+# Pacote do LKI INDUSTRIAL para Windows (sem Docker).
+#   Pull request / qualquer push: monta o pacote e testa a instalação num Windows real.
+#   Push na main: além disso, publica no release "lki-windows" — é de lá que o
+#   instalador (INSTALAR-LKI-INDUSTRIAL.cmd) e o botão ATUALIZAR baixam a versão.
+name: Pacote Windows
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pacote:
+    name: Montar e testar no Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Compilar as telas
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Montar o pacote
+        shell: pwsh
+        run: ./deploy/windows/montar-pacote.ps1
+      - name: Testar instalação, uso, atualização e volta atrás
+        shell: pwsh
+        run: ./deploy/windows/testar-pacote.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lki-industrial-windows
+          path: |
+            saida/LKI-INDUSTRIAL-windows.zip
+            saida/versao.json
+            saida/instalar.ps1
+            saida/INSTALAR-LKI-INDUSTRIAL.cmd
+          retention-days: 14
+
+  publicar:
+    name: Publicar para o botão ATUALIZAR
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: pacote
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: lki-industrial-windows
+          path: saida
+      - name: Atualizar o release lki-windows
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if ! gh release view lki-windows >/dev/null 2>&1; then
+            gh release create lki-windows --target main --latest=false \
+              --title "LKI INDUSTRIAL para Windows" \
+              --notes "Instalador: baixe INSTALAR-LKI-INDUSTRIAL.cmd e dê dois cliques. Atualizações: atalho ATUALIZAR LKI INDUSTRIAL. Este release é atualizado automaticamente a cada versão aprovada nos testes."
+          fi
+          # O manifesto (versao.json) sobe por último: o botão ATUALIZAR só
+          # enxerga a versão nova depois que o pacote dela já está no ar.
+          gh release upload lki-windows --clobber saida/LKI-INDUSTRIAL-windows.zip saida/instalar.ps1 saida/INSTALAR-LKI-INDUSTRIAL.cmd
+          gh release upload lki-windows --clobber saida/versao.json
