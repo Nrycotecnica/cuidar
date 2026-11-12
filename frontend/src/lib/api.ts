@@ -106,8 +106,9 @@ export const api = {
   del: async <T = any>(url: string): Promise<T> => (await requisitar("DELETE", "/api" + url)).json(),
   enviar: async <T = any>(url: string, form: FormData): Promise<T> => (await requisitar("POST", "/api" + url, form, true)).json(),
   blob: async (url: string): Promise<Blob> => (await requisitar("GET", "/api" + url)).blob(),
-  baixar: async (url: string, nomePadrao: string) => {
-    const r = await requisitar("GET", "/api" + url);
+  baixar: async (url: string, nomePadrao: string, corpo?: any) => {
+    // com corpo: POST (ex.: apresentação, que leva as imagens 3D do navegador)
+    const r = await requisitar(corpo === undefined ? "GET" : "POST", "/api" + url, corpo);
     const cd = r.headers.get("Content-Disposition") || "";
     const m = /filename="?([^"]+)"?/.exec(cd);
     const blob = await r.blob();

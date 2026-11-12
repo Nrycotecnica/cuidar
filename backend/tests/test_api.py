@@ -346,3 +346,41 @@ def test_cotas_da_rede_salvam_sobrevivem_ao_editor_e_entram_no_calculo(client, u
     rede["cotas"] = {"rede_m": 4000}
     r = client.put(f"/api/projetos/{p['id']}/rede", headers=h, json={"dados": rede})
     assert r.status_code == 422 and "metros" in r.text
+
+
+def _png_b64(w=320, h=200, cor=(40, 120, 200)):
+    import base64
+    from PIL import Image
+    b = io.BytesIO()
+    Image.new("RGB", (w, h), cor).save(b, "PNG")
+    return "data:image/png;base64," + base64.b64encode(b.getvalue()).decode()
+
+
+def test_apresentacao_pdf_para_o_cliente(client, usuarios):
+    h = usuarios["projetista"]
+    p = _projeto_demo(client, h)
+    assert client.post(f"/api/projetos/{p['id']}/rede/rotear", headers=h, json={}).status_code == 200
+    c = client.post(f"/api/projetos/{p['id']}/calcular", headers=h, json={}).json()
+    img = {"geral": _png_b64(), "oposta": _png_b64(), "cima": _png_b64(cor=(200, 200, 200)), "lateral": _png_b64()}
+    r = client.post(f"/api/calculos/{c['id']}/apresentacao.pdf", headers=h, json={"imagens": img})
+    assert r.status_code == 200, r.text
+    assert r.content.startswith(b"%PDF") and "apresentacao" in r.headers["content-disposition"]
+    import pypdfium2 as pdfium
+    doc = pdfium.PdfDocument(r.content)
+    assert len(doc) == 4  # capa, vistas, resumo técnico, observações
+    texto = "\n".join(doc[i].get_textpage().get_text_range() for i in range(len(doc)))
+    assert "DEMONSTRATIVO" in texto and "Desenvolvido por Diego Pereira" in texto
+    assert "Resumo técnico" in texto and "Pontos de captação" in texto
+    # documento do cliente: sem preço/custo do catálogo
+    assert "R$" not in texto and "custo" not in texto.lower()
+    # só a vista geral: pula a página de vistas
+    r = client.post(f"/api/calculos/{c['id']}/apresentacao.pdf", headers=h, json={"imagens": {"geral": img["geral"]}})
+    assert len(pdfium.PdfDocument(r.content)) == 3
+    # imagem que não é PNG e falta da vista geral são recusadas
+    assert client.post(f"/api/calculos/{c['id']}/apresentacao.pdf", headers=h, json={"imagens": {"geral": "data:image/png;base64,aGVsbG8="}}).status_code == 422
+    assert client.post(f"/api/calculos/{c['id']}/apresentacao.pdf", headers=h, json={"imagens": {"cima": img["cima"]}}).status_code == 422
+    # rede mudou depois do cálculo: recusa, para a imagem nova não sair com números velhos
+    rede = client.get(f"/api/projetos/{p['id']}/rede", headers=h).json()["dados"]
+    assert client.put(f"/api/projetos/{p['id']}/rede", headers=h, json={"dados": rede}).status_code == 200
+    r = client.post(f"/api/calculos/{c['id']}/apresentacao.pdf", headers=h, json={"imagens": img})
+    assert r.status_code == 409 and "Calcule de novo" in r.text

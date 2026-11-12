@@ -33,6 +33,7 @@ export default function Documentos({ ctx }: { ctx: CtxProjeto }) {
             <BotaoAcao className="btn" onClick={baixar("desenho.pdf", "desenho.pdf")}>Desenho PDF</BotaoAcao>
             <BotaoAcao className="btn" onClick={baixar("memorial.pdf", "memorial.pdf")}>Memorial de cálculo (PDF)</BotaoAcao>
             {calc?.tipo === "rede" && <>
+              <button className="btn" title="As vistas 3D são fotografadas na aba 3D" onClick={() => ctx.irPara("3d")}>Apresentação para o cliente (aba 3D)</button>
               <BotaoAcao className="btn" onClick={baixar("lista.xlsx", "lista.xlsx")}>Lista de materiais (Excel)</BotaoAcao>
               <BotaoAcao className="btn" onClick={baixar("lista.csv", "lista.csv")}>Lista (CSV)</BotaoAcao>
               <BotaoAcao className="btn" onClick={baixar("lista.pdf", "lista.pdf")}>Lista (PDF)</BotaoAcao>

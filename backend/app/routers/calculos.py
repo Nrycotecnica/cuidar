@@ -1,11 +1,16 @@
+import base64
+import binascii
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..audit import registrar
 from ..cad.dxf_export import gerar_dxf
 from ..db import get_db
-from ..docs import bom, pdf
+from ..docs import apresentacao, bom, pdf
+from ..engine.cotas import cota_da_rede
 from ..models import Calculo, Exaustor, Projeto, Rede, Usuario
 from ..security import exige, tem
 from .. import services as sv
@@ -76,6 +81,53 @@ def exportar_memorial(cid: int, u: Usuario = Depends(exige("exportar")), db: Ses
     registrar(db, u, "exportar_memorial", "projeto", p.id, {"calculo_id": c.id})
     db.commit()
     return _resp(dados, _nome(p, c, "pdf", aprovado).replace(".pdf", "_memorial.pdf"), "application/pdf")
+
+
+VISTAS = {"geral", "oposta", "cima", "lateral"}
+LIMITE_IMAGEM = 12 * 1024 * 1024  # PNG de 2400 px fica em ~1–4 MB; acima disso é erro, não foto
+
+
+@router.post("/{cid}/apresentacao.pdf")
+def exportar_apresentacao(cid: int, d: dict, u: Usuario = Depends(exige("exportar")), db: Session = Depends(get_db)):
+    """PDF para o cliente com as vistas 3D renderizadas no navegador.
+
+    Só aceita o cálculo da rede ATUAL: as imagens mostram a rede de agora, e uma
+    capa com o desenho novo e os números de um cálculo antigo seria uma
+    apresentação que se contradiz."""
+    c, p, rede, aprovado, pd = _ctx(db, cid)
+    if c.tipo != "rede":
+        raise HTTPException(422, "Apresentação disponível para cálculos de rede de dutos")
+    atual = db.scalars(select(Rede).where(Rede.projeto_id == p.id).order_by(Rede.id)).first()
+    if not atual or c.rede_versao != atual.versao:
+        raise HTTPException(409, f"O cálculo nº {c.id} é de uma versão anterior da rede. Calcule de novo antes de gerar a apresentação.")
+    brutas = d.get("imagens") or {}
+    if not isinstance(brutas, dict) or "geral" not in brutas or not set(brutas) <= VISTAS:
+        raise HTTPException(422, "Envie as imagens das vistas (geral obrigatória; oposta, cima e lateral opcionais)")
+    imagens = {}
+    for chave, b64 in brutas.items():
+        try:
+            dados = base64.b64decode(str(b64).split(",", 1)[-1], validate=True)
+        except (binascii.Error, ValueError):
+            raise HTTPException(422, f"Imagem '{chave}' em formato inválido")
+        if len(dados) > LIMITE_IMAGEM:
+            raise HTTPException(413, f"Imagem '{chave}' grande demais")
+        try:
+            imagens[chave] = apresentacao.validar_imagem(dados, chave)
+        except apresentacao.ImagemInvalida as e:
+            raise HTTPException(422, str(e))
+    ap = None
+    if aprovado and p.aprovado_por:
+        eng = db.get(Usuario, p.aprovado_por)
+        ap = {"nome": eng.nome, "registro": eng.registro_profissional, "data": p.aprovado_em.strftime("%d/%m/%Y")}
+    ctx = {
+        "projeto": {**pd, "revisao": p.versao}, "resultado": c.resultados, "calculo_id": c.id,
+        "calculo_data": c.criado_em.strftime("%d/%m/%Y"), "aprovado": aprovado, "aprovacao": ap,
+        "demonstrativo": p.demonstrativo, "cotas_informadas": cota_da_rede(atual.dados or {}) is not None,
+    }
+    dados_pdf = apresentacao.apresentacao_pdf(ctx, imagens)
+    registrar(db, u, "exportar_apresentacao", "projeto", p.id, {"calculo_id": c.id, "vistas": sorted(imagens)})
+    db.commit()
+    return _resp(dados_pdf, _nome(p, c, "pdf", aprovado).replace(".pdf", "_apresentacao.pdf"), "application/pdf")
 
 
 def _lista(db: Session, c: Calculo, p: Projeto, rede: dict, u: Usuario) -> dict:

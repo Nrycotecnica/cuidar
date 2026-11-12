@@ -12,6 +12,8 @@ import type { CtxProjeto } from "./Projeto";
 const COR = { succao: "#c62828", descarga: "#78909c", semDiametro: "#bdbdbd", captor: "#2e7d32", filtro: "#6a1b9a", exaustor: "#1565c0", descarga_no: "#546e7a", equipamento: "#8d6e63", pilar: "#9e9e9e", obstaculo: "#ffb74d", piso: "#ffffff" };
 const NOME_TIPO: Record<string, string> = { captor: "Captor", filtro: "Filtro", exaustor: "Exaustor", descarga: "Descarga", equipamento: "Equipamento" };
 
+type Vista = "3d" | "oposta" | "cima" | "lateral";
+
 // planta (x, y) + altura z → three.js (y para cima)
 const V = (p: P3) => new THREE.Vector3(p[0], p[2], -p[1]);
 
@@ -133,7 +135,7 @@ export default function Vista3D({ ctx }: { ctx: CtxProjeto }) {
   const [erro, setErro] = useState<unknown>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const caixa = useRef<HTMLDivElement>(null);
-  const motor = useRef<{ renderer: THREE.WebGLRenderer; cena: THREE.Scene; camera: THREE.PerspectiveCamera; controles: OrbitControls; grupo: THREE.Group | null; enquadrar: (deCima?: boolean) => void } | null>(null);
+  const motor = useRef<{ renderer: THREE.WebGLRenderer; cena: THREE.Scene; camera: THREE.PerspectiveCamera; controles: OrbitControls; grupo: THREE.Group | null; enquadrar: (vista?: Vista) => void; redimensionar: () => void } | null>(null);
 
   const carregar = async () => {
     const r = await api.get<any>(`/projetos/${p.id}/rede`);
@@ -200,21 +202,64 @@ export default function Vista3D({ ctx }: { ctx: CtxProjeto }) {
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 5000);
     const controles = new OrbitControls(camera, renderer.domElement);
     controles.enableDamping = true;
-    const enquadrar = (deCima = false) => {
+    const enquadrar = (vista: Vista = "3d") => {
       const g = motor.current?.grupo;
       const caixaG = g ? new THREE.Box3().setFromObject(g) : new THREE.Box3(new THREE.Vector3(0, 0, -10), new THREE.Vector3(20, 5, 0));
       const centro = caixaG.getCenter(new THREE.Vector3());
       const raio = Math.max(caixaG.getSize(new THREE.Vector3()).length() / 2, 3);
       // de cima: lente quase "tele" (12°) para a planta não sair em perspectiva —
       // com 45° os pilares altos perto das paredes pareciam tombados para fora
-      camera.fov = deCima ? 12 : 45;
+      // lateral: 20° pelo mesmo motivo, com as alturas sem distorção
+      camera.fov = vista === "cima" ? 12 : vista === "lateral" ? 20 : 45;
       const d = raio / Math.sin((camera.fov * Math.PI) / 360) * 0.9;
       controles.target.copy(centro);
-      if (deCima) camera.position.set(centro.x, centro.y + d, centro.z + 0.001);
+      if (vista === "cima") camera.position.set(centro.x, centro.y + d, centro.z + 0.001);
+      else if (vista === "lateral") camera.position.set(centro.x, centro.y + d * 0.05, centro.z + d);
+      else if (vista === "oposta") camera.position.set(centro.x - d * 0.55, centro.y + d * 0.55, centro.z - d * 0.62);
       else camera.position.set(centro.x + d * 0.55, centro.y + d * 0.55, centro.z + d * 0.62);
       camera.near = d / 100;
       camera.far = d * 20;
       camera.updateProjectionMatrix();
+      // A distância pela esfera envolvente deixa o modelo pequeno e fora do centro
+      // (a planta é larga e baixa, e o centro da caixa não cai no centro da
+      // imagem em perspectiva). Mede onde as peças caem na imagem, centraliza e
+      // aproxima até ocuparem ~88% do quadro; três passadas porque a
+      // perspectiva não é linear.
+      if (g) {
+        // cantos de CADA peça, não da caixa do conjunto: o canto da caixa geral
+        // fica no ar (topo do pilar sobre o canto do piso)
+        const cantos: THREE.Vector3[] = [];
+        g.updateMatrixWorld(true);
+        g.traverse((o: any) => {
+          if (!o.isMesh) return;
+          const b = new THREE.Box3().setFromObject(o);
+          for (let i = 0; i < 8; i++) cantos.push(new THREE.Vector3(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z));
+        });
+        const alvo = centro.clone();
+        const direita = new THREE.Vector3(), cima = new THREE.Vector3();
+        for (let passada = 0; passada < 3 && cantos.length; passada++) {
+          // a câmera só é apontada para o alvo no controles.update(); sem isto a
+          // medida sai com a orientação anterior
+          camera.lookAt(alvo);
+          camera.updateMatrixWorld();
+          let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+          for (const q of cantos) {
+            const n = q.clone().project(camera);
+            x0 = Math.min(x0, n.x); x1 = Math.max(x1, n.x); y0 = Math.min(y0, n.y); y1 = Math.max(y1, n.y);
+          }
+          const ext = Math.max((x1 - x0) / 2, (y1 - y0) / 2);
+          if (!(ext > 0.02 && ext < 20)) break;
+          const dist = camera.position.distanceTo(alvo);
+          const meiaAlt = Math.tan((camera.fov * Math.PI) / 360) * dist;
+          direita.setFromMatrixColumn(camera.matrixWorld, 0);
+          cima.setFromMatrixColumn(camera.matrixWorld, 1);
+          const desloc = direita.multiplyScalar(((x0 + x1) / 2) * meiaAlt * camera.aspect).add(cima.multiplyScalar(((y0 + y1) / 2) * meiaAlt));
+          alvo.add(desloc);
+          camera.position.add(desloc);
+          camera.position.sub(alvo).multiplyScalar(ext / 0.88).add(alvo);
+        }
+        controles.target.copy(alvo);
+      }
       controles.update();
     };
     const redimensionar = () => {
@@ -235,7 +280,7 @@ export default function Vista3D({ ctx }: { ctx: CtxProjeto }) {
       css.render(cena3, camera);
     };
     animar();
-    motor.current = { renderer, cena: cena3, camera, controles, grupo: null, enquadrar };
+    motor.current = { renderer, cena: cena3, camera, controles, grupo: null, enquadrar, redimensionar };
     return () => {
       cancelAnimationFrame(quadro);
       ro.disconnect();
@@ -267,6 +312,50 @@ export default function Vista3D({ ctx }: { ctx: CtxProjeto }) {
     setMsg("Cotas salvas. Recalcule na aba Rede de dutos: as descidas agora entram no comprimento, nas curvas e na escolha do exaustor.");
   };
 
+  // Fotos para a apresentação: mesma cena, em alta resolução e fundo branco, com
+  // os rótulos pintados na imagem (na tela eles são HTML por cima do 3D e não
+  // sairiam na foto).
+  const fotografar = (vistas: Vista[]): Record<string, string> => {
+    const m = motor.current;
+    if (!m) throw new Error("A vista 3D ainda não abriu.");
+    const W = 2400, H = 1500;
+    const cam = { pos: m.camera.position.clone(), alvo: m.controles.target.clone(), fov: m.camera.fov };
+    const fundo = m.cena.background;
+    const razao = m.renderer.getPixelRatio();
+    const fotos: Record<string, string> = {};
+    try {
+      m.renderer.setPixelRatio(1);
+      m.cena.background = new THREE.Color("#ffffff");
+      for (const v of vistas) {
+        // a lateral é larga e baixa: foto em faixa, senão sobra branco em cima e embaixo
+        const h = v === "lateral" ? 800 : H;
+        m.renderer.setSize(W, h, false);
+        m.camera.aspect = W / h;
+        m.enquadrar(v);
+        m.renderer.render(m.cena, m.camera);
+        fotos[v === "3d" ? "geral" : v] = comRotulos(m.renderer.domElement, m.grupo, m.camera, W, h);
+      }
+    } finally {
+      m.cena.background = fundo;
+      m.renderer.setPixelRatio(razao);
+      m.redimensionar();
+      m.camera.fov = cam.fov;
+      m.camera.position.copy(cam.pos);
+      m.controles.target.copy(cam.alvo);
+      m.camera.updateProjectionMatrix();
+      m.controles.update();
+    }
+    return fotos;
+  };
+
+  const gerarApresentacao = async () => {
+    setErro(null);
+    try {
+      const imagens = fotografar(["3d", "oposta", "cima", "lateral"]);
+      await api.baixar(`/calculos/${calc.id}/apresentacao.pdf`, `${p.codigo}-apresentacao.pdf`, { imagens });
+    } catch (e) { setErro(e); }
+  };
+
   const baixarImagem = () => {
     const m = motor.current;
     if (!m) return;
@@ -287,7 +376,9 @@ export default function Vista3D({ ctx }: { ctx: CtxProjeto }) {
       <div>
         <div className="ferramentas">
           <button className="btn btn-mini" onClick={() => motor.current?.enquadrar()}>Vista 3D</button>
-          <button className="btn btn-mini" onClick={() => motor.current?.enquadrar(true)}>Vista de cima</button>
+          <button className="btn btn-mini" onClick={() => motor.current?.enquadrar("oposta")}>Lado oposto</button>
+          <button className="btn btn-mini" onClick={() => motor.current?.enquadrar("cima")}>Vista de cima</button>
+          <button className="btn btn-mini" onClick={() => motor.current?.enquadrar("lateral")}>Vista lateral</button>
           <button className="btn btn-mini" onClick={baixarImagem}>Baixar imagem (PNG)</button>
         </div>
         <div className="vista-3d" ref={caixa} data-testid="vista-3d" />
@@ -300,6 +391,13 @@ export default function Vista3D({ ctx }: { ctx: CtxProjeto }) {
         <p className="nota">Arraste para girar · botão direito (ou Ctrl + arrastar) para deslocar · roda do mouse para aproximar.</p>
       </div>
       <div className="pilha">
+        {pode("exportar") && (
+          <Cartao titulo="Apresentação para o cliente">
+            <p className="nota" style={{ marginTop: 0 }}>PDF com capa, quatro vistas 3D, resumo técnico (sem preços) e observações. A situação do projeto (preliminar, aprovado ou demonstrativo) sai em todas as páginas.</p>
+            <BotaoAcao className="btn btn-primario" disabled={!calcAtual} onClick={gerarApresentacao}>Gerar apresentação (PDF)</BotaoAcao>
+            {!calcAtual && <p className="nota">{calcRede ? "A rede mudou desde o último cálculo." : "Ainda não há cálculo da rede."} Calcule na aba Rede de dutos para gerar a apresentação com números e imagens da mesma versão.</p>}
+          </Cartao>
+        )}
         {cena?.ilustrativa ? (
           <Alerta tipo="aviso">
             Este projeto ainda não tem cotas. As alturas mostradas são <b>só ilustrativas</b> (rede a {fmt(cena.cotaRede, 1)} m, captores a {fmt(ILUSTRATIVO.captor, 1)} m) e <b>não entram no cálculo</b>. Informe a cota da rede e as cotas abaixo para valerem.
@@ -350,6 +448,39 @@ export default function Vista3D({ ctx }: { ctx: CtxProjeto }) {
       </div>
     </div>
   );
+}
+
+function comRotulos(gl: HTMLCanvasElement, grupo: THREE.Group | null, camera: THREE.Camera, W: number, H: number): string {
+  const tela = document.createElement("canvas");
+  tela.width = W;
+  tela.height = H;
+  const c = tela.getContext("2d");
+  if (!c) return gl.toDataURL("image/png");
+  c.drawImage(gl, 0, 0, W, H);
+  c.font = "600 26px system-ui, sans-serif";
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  const p = new THREE.Vector3();
+  grupo?.traverse((o) => {
+    if (!(o instanceof CSS2DObject)) return;
+    o.getWorldPosition(p).project(camera);
+    if (p.z > 1 || Math.abs(p.x) > 1 || Math.abs(p.y) > 1) return; // atrás da câmera ou fora do quadro
+    const x = (p.x + 1) / 2 * W, y = (1 - p.y) / 2 * H;
+    const texto = o.element.textContent || "";
+    const alerta = o.element.classList.contains("rotulo-3d-alerta");
+    const suave = o.element.classList.contains("rotulo-3d-suave");
+    const w = c.measureText(texto).width + 20, h = 38;
+    c.fillStyle = "rgba(255,255,255,.9)";
+    c.strokeStyle = alerta ? "#e57373" : "#c9d2dc";
+    c.lineWidth = 2;
+    c.beginPath();
+    c.roundRect(x - w / 2, y - h / 2, w, h, 8);
+    c.fill();
+    c.stroke();
+    c.fillStyle = alerta ? "#b71c1c" : suave ? "#a04000" : "#1d2733";
+    c.fillText(texto, x, y + 1);
+  });
+  return tela.toDataURL("image/png");
 }
 
 function descartar(g: THREE.Object3D | null | undefined) {
