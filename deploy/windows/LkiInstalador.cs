@@ -301,6 +301,11 @@ namespace LkiIndustrial
             psi.CreateNoWindow = true;
             psi.RedirectStandardOutput = true;
             psi.RedirectStandardError = true;
+            // Sem PSModulePath herdado: se o instalador for aberto de um terminal
+            // PowerShell 7, o Windows PowerShell 5.1 filho herdaria os modulos do 7
+            // e perderia comandos basicos (Get-FileHash, NetSecurity). Removendo,
+            // ele monta o caminho padrao dele. Achado no teste em Windows real.
+            psi.EnvironmentVariables.Remove("PSModulePath");
             if (env != null) foreach (KeyValuePair<string, string> kv in env) psi.EnvironmentVariables[kv.Key] = kv.Value;
             Process p = new Process();
             p.StartInfo = psi;
