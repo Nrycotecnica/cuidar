@@ -230,6 +230,23 @@ def obter_rede(pid: int, _: Usuario = Depends(exige("ver")), db: Session = Depen
     return to_dict(r)
 
 
+def _validar_cota(v, rotulo: str):
+    # Cota vazia é permitida (ainda não levantada); texto ou número absurdo não:
+    # uma cota de 4000 por engano de unidade (mm em vez de m) viraria 4 km de duto.
+    if v is None:
+        return
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not -10 <= v <= 200:
+        raise HTTPException(422, f"{rotulo}: informe em metros, entre -10 e 200")
+
+
+def _cotas_preservadas(r: Rede, dados: dict) -> dict:
+    # O editor de planta salva só nós e trechos; sem isto, cada "Salvar" na aba
+    # Rede apagaria a cota da rede definida na aba 3D.
+    if "cotas" in dados:
+        return dados["cotas"] or {}
+    return (r.dados or {}).get("cotas") or {}
+
+
 def _validar_rede_basica(dados: dict):
     ids = set()
     for n in dados.get("nodes", []):
@@ -239,6 +256,13 @@ def _validar_rede_basica(dados: dict):
         for k in ("x", "y"):
             if not isinstance(n.get(k), (int, float)):
                 raise HTTPException(422, f"Nó {n['id']} sem coordenada {k}")
+        _validar_cota(n.get("z_m"), f"Cota do nó {n['id']}")
+    for s in dados.get("segments", []):
+        _validar_cota(s.get("cota_m"), f"Cota do trecho {s.get('id')}")
+    if "cotas" in dados:
+        if not isinstance(dados["cotas"], dict):
+            raise HTTPException(422, "Cotas da rede inválidas")
+        _validar_cota(dados["cotas"].get("rede_m"), "Cota da rede")
     for s in dados.get("segments", []):
         if s.get("from") not in ids or s.get("to") not in ids:
             raise HTTPException(422, f"Trecho {s.get('id')} referencia nó inexistente")
@@ -251,7 +275,7 @@ def salvar_rede(pid: int, d: dict, u: Usuario = Depends(exige("projetos.editar")
     r = _rede(db, pid)
     dados = d.get("dados", d)
     _validar_rede_basica(dados)
-    r.dados = {"nodes": dados.get("nodes", []), "segments": dados.get("segments", [])}
+    r.dados = {"nodes": dados.get("nodes", []), "segments": dados.get("segments", []), "cotas": _cotas_preservadas(r, dados)}
     r.versao += 1
     registrar(db, u, "salvar_rede", "projeto", pid, {"rede_versao": r.versao, "nos": len(r.dados["nodes"]), "trechos": len(r.dados["segments"])})
     db.commit()
@@ -320,7 +344,7 @@ def rotear(pid: int, d: dict | None = None, u: Usuario = Depends(exige("projetos
         n["label"] = nid
         ids.add(nid)
         novos_nos.append(n)
-    r.dados = {"nodes": nos_mantidos + novos_nos, "segments": manter + res["segments"]}
+    r.dados = {"nodes": nos_mantidos + novos_nos, "segments": manter + res["segments"], "cotas": _cotas_preservadas(r, {})}
     r.versao += 1
     registrar(db, u, "rotear_rede", "projeto", pid, {"comprimento_m": round(res["comprimento_total_m"], 2), "rede_versao": r.versao})
     db.commit()

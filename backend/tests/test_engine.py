@@ -181,6 +181,41 @@ def test_rede_reprodutivel():
     assert r1["pressao_total_ventilador_pa"] == r2["pressao_total_ventilador_pa"]
 
 
+def test_rede_com_cotas_conta_descidas_e_curvas():
+    """Rede a 4 m, captor a 1 m e chaminé terminando a 9 m: a sucção ganha 3 m de
+    descida e uma curva de 90°; a descarga ganha 5 m de subida e uma curva."""
+    rd = rede_referencia()
+    rd["cotas"] = {"rede_m": 4.0}
+    for n in rd["nodes"]:
+        n["z_m"] = {"c1": 1.0, "f": 4.0, "d": 9.0}[n["id"]]
+    r = analisar_rede(rd, CFG, ps())
+    rho = air.densidade(20, 0)
+    d = 0.3
+    v = 1.0 / (math.pi * d * d / 4)
+    vp = rho * v * v / 2
+    f = friction.fator_atrito_colebrook(rho * v * d / air.viscosidade_dinamica(20), 0.15e-3 / d)
+    succao = f * 13 / d * vp + (0.49 + 0.39) * vp
+    descarga = f * 10 / d * vp + (1.0 + 0.39) * vp
+    t = {x["id"]: x for x in r["trechos"]}
+    assert t["s1"]["comprimento_m"] == pytest.approx(13)
+    assert t["s2"]["comprimento_m"] == pytest.approx(10)
+    assert t["s1"]["pernas_verticais"] == [{"no": "c1", "ponta": "inicio", "cota_no_m": 1.0, "dz_m": -3.0}]
+    assert r["pressao_succao_pa"] == pytest.approx(succao, rel=1e-9)
+    assert r["pressao_total_ventilador_pa"] == pytest.approx(succao + descarga, rel=1e-9)
+
+
+def test_rede_sem_cotas_fica_como_antes_e_cota_faltando_avisa():
+    base = analisar_rede(rede_referencia(), CFG, ps())
+    rd = rede_referencia()
+    rd["cotas"] = {"rede_m": None}
+    assert analisar_rede(rd, CFG, ps())["pressao_total_ventilador_pa"] == base["pressao_total_ventilador_pa"]
+    rd["cotas"] = {"rede_m": 4.0}
+    rd["nodes"][0]["z_m"] = 1.0  # exaustor e descarga sem cota
+    r = analisar_rede(rd, CFG, ps())
+    assert {a for a in r["avisos"] if "não informada" in a} == {"Cota do nó f não informada: a descida até ele não entrou no cálculo", "Cota do nó d não informada: a descida até ele não entrou no cálculo"}
+    assert {x["id"]: x for x in r["trechos"]}["s2"]["comprimento_m"] == pytest.approx(5)
+
+
 def rede_dois_ramais():
     return {
         "nodes": [

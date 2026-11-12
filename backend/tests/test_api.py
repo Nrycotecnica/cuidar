@@ -324,3 +324,25 @@ def test_parametro_demo_continua_demo_com_referencia_demo(client, usuarios):
     r = client.put(f"/api/parametros/{par['id']}", headers=h, json={"valor": 1.5, "referencia": REF}).json()
     assert r["demonstrativo"] is True
     assert client.post(f"/api/parametros/{par['id']}/aprovar", headers=h).status_code == 409
+
+
+def test_cotas_da_rede_salvam_sobrevivem_ao_editor_e_entram_no_calculo(client, usuarios):
+    h = usuarios["projetista"]
+    p = _projeto_demo(client, h)
+    rede = client.get(f"/api/projetos/{p['id']}/rede", headers=h).json()["dados"]
+    sem = client.post(f"/api/projetos/{p['id']}/calcular", headers=h, json={}).json()["resultados"]
+    for n in rede["nodes"]:
+        n["z_m"] = 1.2 if n["type"] == "captor" else 4.5 if n["type"] == "descarga" else None if n["type"] in ("juncao", "ponto") else 0.8
+    rede["cotas"] = {"rede_m": 4.0}
+    assert client.put(f"/api/projetos/{p['id']}/rede", headers=h, json={"dados": rede}).status_code == 200
+    # o editor de planta salva só nós e trechos: a cota da rede não pode sumir
+    sem_cotas = {"nodes": rede["nodes"], "segments": rede["segments"]}
+    salvo = client.put(f"/api/projetos/{p['id']}/rede", headers=h, json={"dados": sem_cotas}).json()["dados"]
+    assert salvo["cotas"] == {"rede_m": 4.0}
+    com = client.post(f"/api/projetos/{p['id']}/calcular", headers=h, json={}).json()["resultados"]
+    assert com["pressao_succao_pa"] > sem["pressao_succao_pa"]
+    assert any(t["pernas_verticais"] for t in com["trechos"])
+    # cota em milímetros por engano é recusada (4000 m de descida)
+    rede["cotas"] = {"rede_m": 4000}
+    r = client.put(f"/api/projetos/{p['id']}/rede", headers=h, json={"dados": rede})
+    assert r.status_code == 422 and "metros" in r.text

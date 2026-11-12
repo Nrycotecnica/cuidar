@@ -6,6 +6,7 @@ import { useAuth } from "../../lib/auth";
 import { poligono, marcaPonto } from "../../lib/desenho";
 import { ENTRADAS_CAPTOR, fmt, numero, TIPOS_CAPTOR } from "../../lib/format";
 import { dist, distPontoSegmento, encaixar, extensaoPontos, retangulo, type Pt, type Vista } from "../../lib/geom";
+import { TIPOS_COM_COTA_PROPRIA } from "../../lib/cena3d";
 import type { CtxProjeto } from "./Projeto";
 
 type Tipo = "captor" | "juncao" | "ponto" | "filtro" | "exaustor" | "descarga";
@@ -403,6 +404,9 @@ export default function Rede({ ctx }: { ctx: CtxProjeto }) {
               <div />
               <Campo rotulo="X (m)">{numIn(noSel.x, (v) => v !== null && updNo({ x: v }), "x")}</Campo>
               <Campo rotulo="Y (m)">{numIn(noSel.y, (v) => v !== null && updNo({ y: v }), "y")}</Campo>
+              {TIPOS_COM_COTA_PROPRIA.has(noSel.type) && (
+                <Campo rotulo="Cota (m)" dica="Altura da ligação ao duto; edite todas na aba 3D">{numIn(noSel.z_m, (v) => updNo({ z_m: v }), "z")}</Campo>
+              )}
             </div>
             {noSel.type === "captor" && (
               <div className="grade g2" style={{ marginTop: 8 }}>
@@ -473,7 +477,8 @@ export default function Rede({ ctx }: { ctx: CtxProjeto }) {
                   <option value="">Padrão do projeto</option><option value="galvanizado">Galvanizado</option><option value="aco_carbono">Aço carbono</option><option value="inox">Inox</option><option value="pvc">PVC</option>
                 </select>
               </Campo>
-              <Campo rotulo="Comprimento extra (m)" dica="trechos verticais">{numIn(trSel.comprimento_extra_m, (v) => updTr({ comprimento_extra_m: v }), "ce")}</Campo>
+              <Campo rotulo="Cota do trecho (m)" dica="vazio = cota da rede (aba 3D)">{numIn(trSel.cota_m, (v) => updTr({ cota_m: v }), "cz")}</Campo>
+              <Campo rotulo="Comprimento extra (m)" dica="além das descidas, que saem das cotas">{numIn(trSel.comprimento_extra_m, (v) => updTr({ comprimento_extra_m: v }), "ce")}</Campo>
               <Campo rotulo="Curvas extras de 90° (qtd)">{numIn((trSel.curvas_extra || [])[0]?.qtd, (v) => updTr({ curvas_extra: v ? [{ angulo: 90, qtd: v }] : [] }), "cv")}</Campo>
             </div>
             <label style={{ display: "block", marginTop: 6 }}><input type="checkbox" checked={!!trSel.travado} disabled={!editavel} onChange={(e) => updTr({ travado: e.target.checked })} /> Travar trajeto (o roteamento automático não altera)</label>

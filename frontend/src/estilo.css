@@ -157,3 +157,11 @@ code { background: #f1f3f5; padding: 1px 4px; border-radius: 3px; font-size: 12p
   gap: 4px; font-size: 12px; color: #fff; background: #1d3f60; border-top: 1px solid rgba(255,255,255,.15); padding: 0 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .app, .login-pagina { padding-bottom: 28px; }
 @media (max-width: 860px) { .lateral { bottom: 28px; } }
+
+/* Vista 3D */
+.vista-3d { position: relative; height: 600px; border: 1px solid var(--borda); border-radius: var(--raio); overflow: hidden; background: #eef2f6; }
+.vista-3d canvas { display: block; }
+.camada-rotulos-3d { position: absolute; top: 0; left: 0; pointer-events: none; }
+.rotulo-3d { font: 600 11px system-ui, sans-serif; color: #1d2733; background: rgba(255,255,255,.85); border: 1px solid #c9d2dc; border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
+.rotulo-3d-suave { font-weight: 400; color: #a04000; }
+.rotulo-3d-alerta { color: #b71c1c; border-color: #e57373; }

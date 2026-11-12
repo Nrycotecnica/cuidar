@@ -7,6 +7,8 @@ export default defineConfig({
     port: 5173,
     proxy: { "/api": "http://localhost:8000" },
   },
-  build: { outDir: "dist", sourcemap: false },
+  // O pedaço da vista 3D (three.js, ~590 kB) passa do aviso padrão de 500 kB, mas
+  // é carregado só ao abrir a aba 3D e roda localmente — não vale quebrá-lo.
+  build: { outDir: "dist", sourcemap: false, chunkSizeWarningLimit: 700 },
   test: { environment: "node" },
 } as any);

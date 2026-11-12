@@ -28,6 +28,7 @@ Legenda: ✅ funciona e foi verificado · 🟡 parcial · ⏳ não iniciado · �
 - ✅ Clientes, projetos (3 módulos), entradas com status *confirmado / estimado / não confirmado* (só o engenheiro confirma; alteração de valor confirmado volta a "não confirmado").
 - ✅ Visita técnica digital com lista automática de dados a levantar e criação do projeto inicial com dados parciais.
 - ✅ Motor de cálculo: ar (ISA + gás ideal + Sutherland), Darcy-Weisbach/Colebrook, perdas singulares parametrizadas, captores (Dalla Valle, flange, enclausuramento, coifa fria), ramo governante, equilíbrio de junções, FTP/FSP, curva do sistema, ponto de operação exato sem extrapolação, correção de densidade, seleção com motivos de rejeição, três estratégias de dimensionamento e comparação de alternativas (pressão, potência, energia anual, massa, custo), renovação de ar (trocas/h, ocupação, carga térmica informada, balanço de pressão, quantidade de equipamentos, área de entrada, sugestão de posicionamento).
+- ✅ Cotas da rede (altura da rede principal, de cada trecho, captor e equipamento): descidas e subidas verticais entram no comprimento e ganham uma curva de 90° cada (hipótese registrada na memória de cálculo). Sem cota da rede, o cálculo fica como antes; nó sem cota gera aviso.
 - ✅ Roteamento automático ortogonal (A*) evitando pilares, máquinas e regiões bloqueadas, preservando trechos travados e o lado de descarga.
 - ✅ Verificações de segurança com checklist (poeira combustível, atmosfera explosiva, contaminante perigoso, temperatura) e bloqueio permanente para controle de fumaça de incêndio.
 - ✅ Fluxo de aprovação com bloqueios (demonstrativo, parâmetros não aprovados, entradas não confirmadas, exaustor não aprovado, rede alterada, segurança).
@@ -41,7 +42,7 @@ Legenda: ✅ funciona e foi verificado · 🟡 parcial · ⏳ não iniciado · �
 ### Frontend (React + TypeScript + Vite, sem biblioteca de UI)
 - ✅ Login, painel, faixa de ambiente (cor por ambiente) com versão, selo "DEMONSTRATIVO — FICTÍCIO", ações ocultadas conforme permissões.
 - ✅ Clientes, visitas técnicas (pontos de emissão, máquinas, pilares, riscos, anexos, dados a levantar, criar projeto), projetos.
-- ✅ Projeto com abas: Dados (status de confirmação), Plantas (visualizador 2D com zoom/pan/camadas/medição/calibração/edição de detecções, imagem de fundo de PDF), Rede (editor visual: nós, trechos, arrastar, propriedades, regiões bloqueadas, roteamento, cálculo, rótulos Ø/vazão/velocidade), Cálculo (resumo, bloqueios, trechos, equilíbrio, seleção, gráfico curva × sistema, memória de cálculo, alternativas, renovação com posicionamento), Documentos, Segurança, Aprovação, Assistente, Histórico.
+- ✅ Projeto com abas: Dados (status de confirmação), Plantas (visualizador 2D com zoom/pan/camadas/medição/calibração/edição de detecções, imagem de fundo de PDF), Rede (editor visual: nós, trechos, arrastar, propriedades, regiões bloqueadas, roteamento, cálculo, rótulos Ø/vazão/velocidade), 3D (rede, pilares, obstáculos e equipamentos em three.js; girar/aproximar, vista de cima, baixar PNG; edição das cotas com prévia ao vivo; alturas ilustrativas e aviso quando o projeto ainda não tem cotas), Cálculo (resumo, bloqueios, trechos, equilíbrio, seleção, gráfico curva × sistema, memória de cálculo, alternativas, renovação com posicionamento), Documentos, Segurança, Aprovação, Assistente, Histórico.
 - ✅ Catálogo (exaustores com editor/gráfico/consulta de curva e importação, componentes, parâmetros com aprovação), Biblioteca de projetos anteriores com comparação, Administração (versão, histórico, usuários, matriz de permissões, auditoria).
 - ✅ Verificado: `tsc` sem erros, `npm run build`, `npm test` (7 testes) e navegação ponta a ponta com Playwright (incluindo celular 390 px sem rolagem horizontal), sem erros no console.
 - 🟡 O editor não insere vértices novos em um trecho (move os existentes ou limpa o trajeto); rótulos podem se sobrepor com nós muito próximos; em PDF o texto vetorial aparece sobre a imagem de fundo.
@@ -65,7 +66,8 @@ Legenda: ✅ funciona e foi verificado · 🟡 parcial · ⏳ não iniciado · �
 
 ## Ainda não implementado
 - ⏳ Integração direta com AutoCAD (plug-in) e com Autodesk Inventor (conector Windows) — arquitetura descrita em `docs/ARQUITETURA.md`.
-- ⏳ Modelagem 3D, desenhos de fabricação, planificação de chapas.
+- ⏳ Modelo 3D para AutoCAD/Inventor (DXF 3D com sólidos), entrega visual para o cliente, desenhos de fabricação, planificação de chapas. A vista 3D atual é de conferência: equipamentos são símbolos sem dimensão real e a cena não detecta interferências.
+- ⏳ Roteamento automático em 3D (hoje roteia em planta; as cotas vêm do projetista).
 - ⏳ Método de pluma térmica para coifas sobre fontes quentes (hoje bloqueia e exige vazão informada justificada).
 - ⏳ Dimensionamento automático de dutos retangulares (aceitos com dimensões informadas).
 - ⏳ Leis dos ventiladores para variação de rotação (seleção usa somente a curva cadastrada).
