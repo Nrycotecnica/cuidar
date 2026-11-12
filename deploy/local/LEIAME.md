@@ -1,6 +1,6 @@
 # Lki Industrial — instalação local (no seu computador)
 
-Roda o sistema completo no próprio computador, sem custo de hospedagem, com **atualização automática** a partir do GitHub e **backup diário**. Os outros computadores da mesma rede (fábrica/escritório) acessam pelo navegador.
+Roda o sistema completo no próprio computador, sem custo de hospedagem, com **botão de atualização** (atalho na Área de Trabalho, no mesmo esquema do STAGE NRYCO) e **backup diário**. Os outros computadores da mesma rede (fábrica/escritório) acessam pelo navegador.
 
 ## Requisitos
 - Windows 10/11 com o **Docker Desktop** instalado e aberto — https://www.docker.com/products/docker-desktop/ (instale com as opções padrão; ele pode pedir para reiniciar e para ativar o WSL 2).
@@ -15,16 +15,24 @@ Roda o sistema completo no próprio computador, sem custo de hospedagem, com **a
 4. Informe o **e-mail e a senha do administrador**. O script:
    - cria a configuração com senhas aleatórias para o banco e para os tokens (arquivo `.env` — não compartilhe);
    - baixa e inicia o sistema;
-   - agenda a **atualização automática a cada 30 minutos** (Agendador de Tarefas: *LkiIndustrial-Atualizar*);
+   - cria dois atalhos na Área de Trabalho: **LKI INDUSTRIAL** (abre o sistema) e **ATUALIZAR LKI INDUSTRIAL** (busca a versão nova);
    - pergunta se deve liberar a porta 8080 no firewall para a rede local;
    - abre o navegador em **http://localhost:8080**.
 
 Nos outros computadores da rede: `http://<IP-deste-computador>:8080` (o script mostra o IP ao final).
 
-## Como funciona a atualização
-1. Você (ou o Claude Code) envia mudanças para a branch `main` no GitHub.
-2. O GitHub roda os testes e publica a imagem nova (`ghcr.io/nrycotecnica/cuidar:main`).
-3. Em até 30 minutos, `atualizar.ps1` percebe a versão nova, **faz backup do banco** (`backups\pre-atualizacao-*.dump`) e reinicia o sistema. O registro fica em `atualizacoes.log`.
+## Como funciona a atualização (botão ATUALIZAR)
+Mesmo esquema do STAGE NRYCO: **nada troca sozinho**; a versão nova só entra quando alguém clica.
+
+1. Você (ou o Claude Code) envia mudanças para a branch `main`; o GitHub roda os testes e publica a versão nova.
+2. Ao abrir pelo atalho **LKI INDUSTRIAL**, o sistema **avisa** se há versão nova (sem instalar).
+3. Com ninguém usando o sistema, clique em **ATUALIZAR LKI INDUSTRIAL**. Ele:
+   - confere se há versão nova (sem baixar nada antes);
+   - atualiza também os arquivos desta pasta (scripts e configuração), guardando cópia `.anterior`;
+   - faz **backup do banco** (`backups\pre-atualizacao-*.dump`);
+   - baixa a versão nova e reinicia (1 a 3 minutos);
+   - se a versão nova não responder, **volta sozinho para a anterior** e indica o backup;
+   - mostra a versão antes → depois e registra em `atualizacoes.log`.
 
 A versão instalada aparece na faixa do topo da tela e em **Administração**.
 

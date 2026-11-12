@@ -70,11 +70,27 @@ for ($i = 0; $i -lt 60; $i++) {
 }
 if (-not $ok) { Escrever "O sistema não respondeu. Veja os registros com: docker compose logs app" Red; Read-Host "Enter para sair"; exit 1 }
 
-# 4. Atualização automática a cada 30 minutos (Agendador de Tarefas do Windows)
-$acao = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$PSScriptRoot\atualizar.ps1`""
-$gatilho = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(5) -RepetitionInterval (New-TimeSpan -Minutes 30)
-Register-ScheduledTask -TaskName "LkiIndustrial-Atualizar" -Action $acao -Trigger $gatilho -Description "Baixa e aplica novas versões do Lki Industrial" -Force | Out-Null
-Escrever "Atualização automática agendada (a cada 30 minutos)." Green
+# 4. Atalhos na Area de Trabalho, no esquema do STAGE NRYCO:
+#    "LKI INDUSTRIAL" abre o sistema; "ATUALIZAR LKI INDUSTRIAL" busca a versao nova.
+#    A atualizacao NAO acontece sozinha: so quando alguem clica, para nunca
+#    trocar a versao no meio do trabalho de alguem.
+Unregister-ScheduledTask -TaskName "LkiIndustrial-Atualizar" -Confirm:$false -ErrorAction SilentlyContinue
+$mesa = [Environment]::GetFolderPath("Desktop")
+$ps = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
+$shell = New-Object -ComObject WScript.Shell
+$a = $shell.CreateShortcut((Join-Path $mesa "LKI INDUSTRIAL.lnk"))
+$a.TargetPath = $ps
+$a.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Minimized -File `"$PSScriptRoot\abrir.ps1`""
+$a.WorkingDirectory = $PSScriptRoot
+$a.Description = "Abre o LKI INDUSTRIAL"
+$a.Save()
+$b = $shell.CreateShortcut((Join-Path $mesa "ATUALIZAR LKI INDUSTRIAL.lnk"))
+$b.TargetPath = $ps
+$b.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$PSScriptRoot\atualizar.ps1`""
+$b.WorkingDirectory = $PSScriptRoot
+$b.Description = "Busca a versao mais nova do LKI INDUSTRIAL. Use com ninguem usando o sistema."
+$b.Save()
+Escrever "Atalhos criados na Area de Trabalho: LKI INDUSTRIAL e ATUALIZAR LKI INDUSTRIAL." Green
 
 # 5. Acesso pelos outros computadores da rede (opcional, requer administrador)
 $resp = Read-Host "Liberar o acesso pelos outros computadores da rede local? (s/n)"
