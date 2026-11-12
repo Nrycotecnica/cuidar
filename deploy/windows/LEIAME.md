@@ -3,12 +3,13 @@
 Forma recomendada de instalar no computador de quem vai usar: **não precisa de Docker, nem de administrador, nem reiniciar.**
 
 ## Para quem vai instalar
-1. Baixe **`INSTALAR-LKI-INDUSTRIAL.cmd`**:
-   https://github.com/Nrycotecnica/cuidar/releases/download/lki-windows/INSTALAR-LKI-INDUSTRIAL.cmd
-2. Dê **dois cliques** no arquivo.
+1. Baixe **`LKI-INDUSTRIAL-Instalador.exe`** (≈ 70 MB, já traz o programa inteiro — instala até sem internet):
+   https://github.com/Nrycotecnica/cuidar/releases/download/lki-windows/LKI-INDUSTRIAL-Instalador.exe
+2. Dê **dois cliques**.
    - Se o Windows mostrar "O Windows protegeu o computador", clique em **Mais informações → Executar assim mesmo** (o arquivo não tem assinatura digital paga).
-3. Aguarde o download (≈ 100–150 MB) e crie o **e-mail e a senha** do administrador.
-4. Pronto: o navegador abre em **http://127.0.0.1:8080**. Na Área de Trabalho ficam três atalhos:
+3. Crie o **e-mail e a senha** do administrador, deixe marcado **"Permitir acesso pelos outros computadores da rede local"** e clique em **Instalar**.
+   - No fim, o Windows pede **uma vez** permissão para o firewall: clique em **Sim**. A liberação vale só para a rede local (perfis Privado/Domínio, sub-rede local), nunca para a internet. Quem clicar "Não" instala do mesmo jeito e libera depois pelo Menu Iniciar → **LIBERAR REDE LKI INDUSTRIAL**.
+4. Clique em **Abrir o sistema**. O LKI INDUSTRIAL aparece em **Configurações → Aplicativos instalados** (com Desinstalar). Na Área de Trabalho ficam três atalhos:
    - **LKI INDUSTRIAL** — abre o sistema (e avisa se há versão nova);
    - **ATUALIZAR LKI INDUSTRIAL** — instala a versão nova (use com ninguém usando o sistema);
    - **FECHAR LKI INDUSTRIAL** — desliga o sistema.
@@ -34,7 +35,9 @@ Forma recomendada de instalar no computador de quem vai usar: **não precisa de 
 **Copie `dados\` para outro lugar de vez em quando** (OneDrive, HD externo).
 
 ## Acesso pelos outros computadores da rede
-Por padrão o sistema só atende o próprio computador. Para liberar na rede local: em `config.env` mude `REDE=0` para `REDE=1`, feche e abra pelo atalho, e permita o acesso quando o Firewall do Windows perguntar (pede administrador). Depois, nos outros computadores: `http://IP-DESTE-COMPUTADOR:8080`.
+Liberado na instalação (opção marcada por padrão) ou depois pelo Menu Iniciar → **LIBERAR REDE LKI INDUSTRIAL**. Nos outros computadores: `http://IP-DESTE-COMPUTADOR:8080` (o IP aparece ao liberar).
+
+Alternativa sem .exe: `INSTALAR-LKI-INDUSTRIAL.cmd` (mesmo link, trocando o nome do arquivo) baixa e instala pelo terminal.
 
 ## Limitações
 - Banco SQLite: ótimo para um computador e poucos usuários simultâneos. Para muitos usuários ao mesmo tempo, use a instalação com servidor (PostgreSQL) — ver `deploy/LEIAME-SERVIDOR.md`.

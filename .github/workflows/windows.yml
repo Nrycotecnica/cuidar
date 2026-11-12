@@ -21,6 +21,7 @@ jobs:
   pacote:
     name: Montar e testar no Windows
     runs-on: windows-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -46,6 +47,7 @@ jobs:
         with:
           name: lki-industrial-windows
           path: |
+            saida/LKI-INDUSTRIAL-Instalador.exe
             saida/LKI-INDUSTRIAL-windows.zip
             saida/versao.json
             saida/instalar.ps1
@@ -72,9 +74,9 @@ jobs:
           if ! gh release view lki-windows >/dev/null 2>&1; then
             gh release create lki-windows --target main --latest=false \
               --title "LKI INDUSTRIAL para Windows" \
-              --notes "Instalador: baixe INSTALAR-LKI-INDUSTRIAL.cmd e dê dois cliques. Atualizações: atalho ATUALIZAR LKI INDUSTRIAL. Este release é atualizado automaticamente a cada versão aprovada nos testes."
+              --notes "Instalador: baixe LKI-INDUSTRIAL-Instalador.exe e dê dois cliques. Atualizações: atalho ATUALIZAR LKI INDUSTRIAL. Este release é atualizado automaticamente a cada versão aprovada nos testes."
           fi
           # O manifesto (versao.json) sobe por último: o botão ATUALIZAR só
           # enxerga a versão nova depois que o pacote dela já está no ar.
-          gh release upload lki-windows --clobber saida/LKI-INDUSTRIAL-windows.zip saida/instalar.ps1 saida/INSTALAR-LKI-INDUSTRIAL.cmd
+          gh release upload lki-windows --clobber saida/LKI-INDUSTRIAL-Instalador.exe saida/LKI-INDUSTRIAL-windows.zip saida/instalar.ps1 saida/INSTALAR-LKI-INDUSTRIAL.cmd
           gh release upload lki-windows --clobber saida/versao.json

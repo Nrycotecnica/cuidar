@@ -70,6 +70,9 @@ Rename-Item $nova $Programa
 Diga 'Iniciando a versao nova...'
 if ((IniciarServidor) -and (EsperarSistema 150)) {
     Copy-Item (Join-Path $Programa 'ferramentas\*') $Ferramentas -Force
+    . (Join-Path $Ferramentas 'lki-comum.ps1')
+    RegistrarNoWindows
+    CriarAtalho 'LIBERAR REDE LKI INDUSTRIAL' 'liberar-rede.ps1' 'Permite acesso pelos outros computadores da rede local (pede administrador)' -SoMenu
     $agora = LerVersao $Programa
     Diga "Atualizado: $(TextoVersao $local)  ->  $(TextoVersao $agora)" 'Green'
     Registrar "Atualizado: $(TextoVersao $local) -> $(TextoVersao $agora) (backup $bk)"

@@ -92,6 +92,8 @@ if (-not (Test-Path $ConfigArq)) {
 CriarAtalho 'LKI INDUSTRIAL' 'abrir.ps1' 'Abre o LKI INDUSTRIAL' -Minimizado
 CriarAtalho 'ATUALIZAR LKI INDUSTRIAL' 'atualizar.ps1' 'Busca a versao mais nova do LKI INDUSTRIAL. Use com ninguem usando o sistema.'
 CriarAtalho 'FECHAR LKI INDUSTRIAL' 'fechar.ps1' 'Fecha o LKI INDUSTRIAL' -Minimizado
+CriarAtalho 'LIBERAR REDE LKI INDUSTRIAL' 'liberar-rede.ps1' 'Permite acesso pelos outros computadores da rede local (pede administrador)' -SoMenu
+RegistrarNoWindows
 
 Diga 'Iniciando o sistema pela primeira vez (pode levar um minuto)...'
 if (-not (IniciarServidor)) { Falhar "Falha ao preparar o banco de dados. Veja: $Logs\migracao-erros.log" }
